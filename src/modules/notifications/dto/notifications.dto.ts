@@ -1,0 +1,102 @@
+import {
+  IsString,
+  IsEnum,
+  IsOptional,
+  IsBoolean,
+  IsObject,
+  IsUUID,
+  IsInt,
+  Min,
+  Max,
+} from 'class-validator';
+import { Transform, Type } from 'class-transformer';
+import { NotificationStatus, NotificationType } from 'src/database/entities/notification.entity';
+
+export class CreateNotificationDto {
+  @IsUUID()
+  userId: string;
+
+  @IsEnum(NotificationType)
+  type: NotificationType;
+
+  @IsString()
+  title: string;
+
+  @IsString()
+  message: string;
+
+  @IsOptional()
+  @IsObject()
+  data?: any;
+}
+
+export class NotificationFilterDto {
+  @IsOptional()
+  @IsEnum(NotificationType)
+  type?: NotificationType;
+
+  @IsOptional()
+  @IsEnum(NotificationStatus)
+  status?: NotificationStatus;
+
+  @IsOptional()
+  @IsBoolean()
+  @Transform(({ value }) => {
+    if (value === 'true') return true;
+    if (value === 'false') return false;
+    return value;
+  })
+  isRead?: boolean;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  page?: number = 1;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(100)
+  limit?: number = 20;
+
+  @IsOptional()
+  @IsString()
+  sortBy?: string = 'createdAt';
+
+  @IsOptional()
+  @IsString()
+  sortOrder?: 'ASC' | 'DESC' = 'DESC';
+}
+
+export class MarkAsReadDto {
+  @IsUUID()
+  notificationId: string;
+}
+
+export class UpdateNotificationStatusDto {
+  @IsEnum(NotificationStatus)
+  status: NotificationStatus;
+
+  @IsOptional()
+  sentAt?: Date;
+}
+
+export class BulkNotificationDto {
+  @IsUUID(4, { each: true })
+  userIds: string[];
+
+  @IsEnum(NotificationType)
+  type: NotificationType;
+
+  @IsString()
+  title: string;
+
+  @IsString()
+  message: string;
+
+  @IsOptional()
+  @IsObject()
+  data?: any;
+}
