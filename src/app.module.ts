@@ -27,6 +27,8 @@ import { VehiclesModule } from './modules/vehicles/vehicles.module';
 import { UsersModule } from './modules/users/users.module';
 import { SurgePricingModule } from './modules/surge-pricing/surge-pricing.module';
 import { DriverProfileModule } from './modules/driver-profiles/driver-profiles.module';
+import { RefreshToken } from './database/entities/refresh-token.entity';
+import { HealthModule } from './modules/health/health.module';
 
 // Debug environment variables
 console.log('=== ENVIRONMENT DEBUG ===');
@@ -84,7 +86,8 @@ console.log('=== END ENVIRONMENT DEBUG ===');
             SurgePricing,
             Ride,
             RatingReview,
-            Notification
+            Notification,
+            RefreshToken
           ],
           synchronize: false,
           logging: true,
@@ -115,6 +118,7 @@ console.log('=== END ENVIRONMENT DEBUG ===');
     VehiclesModule,
     UsersModule,
     SurgePricingModule,
+    HealthModule,
   ],
 
   // Remove all the duplicate controllers and services

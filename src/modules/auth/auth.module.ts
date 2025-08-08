@@ -4,18 +4,22 @@ import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 
-
 import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
-import { JwtStrategy } from './strategies/jwt.strategy';
+import { JwtStrategy } from '../../common/strategies/jwt.strategy';
 import { User } from 'src/database/entities/user.entity';
 import { DriverProfile } from 'src/database/entities/driver-profile.entity';
 import { Ride } from 'src/database/entities/ride.entity';
-
+import { RefreshToken } from 'src/database/entities/refresh-token.entity'; // Add this import
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([User, DriverProfile, Ride]), // Add this line
+    TypeOrmModule.forFeature([
+      User, 
+      DriverProfile, 
+      Ride, 
+      RefreshToken // Add RefreshToken entity here
+    ]), 
     PassportModule.register({ defaultStrategy: 'jwt' }),
     JwtModule.registerAsync({
       imports: [ConfigModule],
@@ -29,6 +33,6 @@ import { Ride } from 'src/database/entities/ride.entity';
   ],
   providers: [AuthService, JwtStrategy],
   controllers: [AuthController],
-  exports: [AuthService, JwtStrategy, PassportModule, JwtModule], // Export for use in other modules
+  exports: [AuthService, JwtStrategy, PassportModule, JwtModule],
 })
 export class AuthModule {}

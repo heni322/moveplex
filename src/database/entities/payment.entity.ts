@@ -9,6 +9,7 @@ import {
 } from 'typeorm';
 import { User } from './user.entity';
 import { Ride } from './ride.entity';
+import { PaymentStatus } from '../../common/enums/payment-status.enum';
 
 export enum PaymentMethod {
   CASH = 'cash',
@@ -26,12 +27,7 @@ export enum PaymentType {
 }
 
 // Define PaymentStatus here instead of importing from ride.entity
-export enum PaymentStatus {
-  PENDING = 'pending',
-  COMPLETED = 'completed',
-  FAILED = 'failed',
-  REFUNDED = 'refunded',
-}
+
 
 @Entity('payments')
 export class Payment {

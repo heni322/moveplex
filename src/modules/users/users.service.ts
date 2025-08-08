@@ -15,7 +15,8 @@ import {
   ChangePasswordDto,
   UserProfileResponseDto,
 } from './dto/users.dto';
-import { User, UserType } from 'src/database/entities/user.entity';
+import { User } from 'src/database/entities/user.entity';
+import { UserType } from 'src/common/enums/user-types.enum';
 
 @Injectable()
 export class UsersService {

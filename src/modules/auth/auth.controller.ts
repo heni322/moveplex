@@ -1,23 +1,63 @@
-import { Controller, Post, Body, UseGuards, Get } from '@nestjs/common';
+import { 
+  Controller, 
+  Post, 
+  Body, 
+  UseGuards, 
+  Get, 
+  Req, 
+  HttpCode, 
+  HttpStatus,
+  Delete
+} from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
+import { Throttle } from '@nestjs/throttler';
+import { Request } from 'express';
+
 import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
-import { CurrentUser } from './decorators/current-user.decorator';
+import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { User } from 'src/database/entities/user.entity';
+import { RefreshTokenDto } from 'src/common/dto/refresh-token.dto';
 
 @Controller('auth')
 export class AuthController {
   constructor(private authService: AuthService) {}
 
   @Post('register')
+  @HttpCode(HttpStatus.CREATED)
+  @Throttle({ default: { limit: 3, ttl: 60000 } })
   async register(@Body() registerDto: RegisterDto) {
     return this.authService.register(registerDto);
   }
 
   @Post('login')
-  async login(@Body() loginDto: LoginDto) {
-    return this.authService.login(loginDto);
+  @HttpCode(HttpStatus.OK)
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
+  async login(@Body() loginDto: LoginDto, @Req() req: Request) {
+    const userAgent = req.headers['user-agent'];
+    const ipAddress = req.ip;
+    return this.authService.login(loginDto, userAgent, ipAddress);
+  }
+
+  @Post('refresh')
+  @HttpCode(HttpStatus.OK)
+  async refreshToken(@Body() refreshTokenDto: RefreshTokenDto) {
+    return this.authService.refreshToken(refreshTokenDto);
+  }
+
+  @Post('logout')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @UseGuards(AuthGuard('jwt'))
+  async logout(@Body() refreshTokenDto: RefreshTokenDto) {
+    return this.authService.logout(refreshTokenDto.refresh_token);
+  }
+
+  @Delete('logout/all')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @UseGuards(AuthGuard('jwt'))
+  async logoutAll(@CurrentUser() user: User) {
+    return this.authService.logoutAll(user.id);
   }
 
   @Get('profile')
@@ -26,8 +66,12 @@ export class AuthController {
     return {
       id: user.id,
       email: user.email,
-      role: user.userType,
-      profile: user.userType === 'driver' ? user.ridesAsDriver : user.ridesAsRider,
+      userType: user.userType,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      phone: user.phone,
+      isVerified: user.isVerified,
+      driverProfile: user.driverProfile,
     };
   }
 }

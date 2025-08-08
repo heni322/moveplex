@@ -10,7 +10,8 @@ import {
   Max,
 } from 'class-validator';
 import { Transform, Type } from 'class-transformer';
-import { NotificationStatus, NotificationType } from 'src/database/entities/notification.entity';
+import { NotificationStatus } from 'src/database/entities/notification.entity';
+import { NotificationType } from 'src/common/enums/notification-types.enum';
 
 export class CreateNotificationDto {
   @IsUUID()

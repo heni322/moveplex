@@ -10,8 +10,9 @@ import {
 } from 'typeorm';
 import { User } from './user.entity';
 import { RideTracking } from './ride-tracking.entity';
-import { Payment, PaymentStatus } from './payment.entity'; // Import PaymentStatus from payment.entity
+import { Payment } from './payment.entity'; // Import PaymentStatus from payment.entity
 import { RatingReview } from './rating-review.entity';
+import { PaymentStatus } from '../../common/enums/payment-status.enum';
 
 export enum RideType {
   ECONOMY = 'economy',

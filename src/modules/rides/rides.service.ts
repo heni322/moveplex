@@ -18,7 +18,7 @@ import {
 import { Ride, RideStatus } from 'src/database/entities/ride.entity';
 import { User } from 'src/database/entities/user.entity';
 import { RideTracking } from 'src/database/entities/ride-tracking.entity';
-import { PaymentStatus } from 'src/database/entities/payment.entity';
+import { PaymentStatus } from '../../common/enums/payment-status.enum';
 
 @Injectable()
 export class RidesService {

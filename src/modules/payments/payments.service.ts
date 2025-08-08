@@ -5,9 +5,10 @@ import {
   InternalServerErrorException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Payment, PaymentStatus } from 'src/database/entities/payment.entity';
+import { Payment } from 'src/database/entities/payment.entity';
 import { Repository, Between, MoreThanOrEqual, LessThanOrEqual } from 'typeorm';
 import { CreatePaymentDto, PaymentFilterDto, PaymentHistoryResponseDto, PaymentResponseDto, ProcessPaymentDto } from './dto/payments.dto';
+import { PaymentStatus } from '../../common/enums/payment-status.enum';
 
 
 @Injectable()

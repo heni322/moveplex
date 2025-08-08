@@ -6,13 +6,8 @@ import {
   OneToMany,
 } from 'typeorm';
 import { DriverProfile } from './driver-profile.entity';
+import { VehicleType } from '../../common/enums/vehicle-types.enum';
 
-export enum VehicleType {
-  ECONOMY = 'economy',
-  PREMIUM = 'premium',
-  LUXURY = 'luxury',
-  SUV = 'suv',
-}
 
 @Entity('vehicles')
 export class Vehicle {

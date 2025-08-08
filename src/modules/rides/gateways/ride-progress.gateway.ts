@@ -1,6 +1,6 @@
 import { Logger, UseGuards } from "@nestjs/common";
 import { ConnectedSocket, MessageBody, OnGatewayConnection, OnGatewayDisconnect, SubscribeMessage, WebSocketGateway, WebSocketServer } from "@nestjs/websockets";
-import { JwtAuthGuard } from "src/modules/auth/jwt-auth.guard";
+import { JwtAuthGuard } from "src/common/guards/jwt-auth.guard";
 import { LocationsService } from "src/modules/locations/services/locations.service";
 import { Server, Socket } from 'socket.io';
 

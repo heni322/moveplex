@@ -10,7 +10,7 @@ import {
   Matches,
 } from 'class-validator';
 import { Transform } from 'class-transformer';
-import { UserType } from 'src/database/entities/user.entity';
+import { UserType } from 'src/common/enums/user-types.enum';
 
 export class CreateUserDto {
   @IsEmail()

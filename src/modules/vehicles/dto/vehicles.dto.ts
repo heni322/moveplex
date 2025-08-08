@@ -10,7 +10,7 @@ import {
   Matches 
 } from 'class-validator';
 import { Transform } from 'class-transformer';
-import { VehicleType } from 'src/database/entities/vehicle.entity';
+import { VehicleType } from 'src/common/enums/vehicle-types.enum';
 
 export class CreateVehicleDto {
   @IsString()

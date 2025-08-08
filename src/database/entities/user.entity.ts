@@ -11,13 +11,9 @@ import { DriverProfile } from './driver-profile.entity';
 import { Ride } from './ride.entity';
 import { Payment } from './payment.entity';
 import { RatingReview } from './rating-review.entity';
+import { UserType } from '../../common/enums/user-types.enum';
+import { RefreshToken } from './refresh-token.entity';
 
-
-export enum UserType {
-  RIDER = 'rider',
-  DRIVER = 'driver',
-  BOTH = 'both',
-}
 
 @Entity('users')
 export class User {
@@ -79,4 +75,19 @@ export class User {
 
   @OneToMany(() => RatingReview, (rating) => rating.ratedUser)
   ratingsReceived: RatingReview[];
+
+  @Column({ name: 'failed_login_attempts', default: 0 })
+  failedLoginAttempts: number;
+
+  @Column({ name: 'locked_until', nullable: true })
+  lockedUntil?: Date;
+
+  @Column({ name: 'last_login_at', nullable: true })
+  lastLoginAt?: Date;
+
+  @Column({ name: 'password_changed_at', nullable: true })
+  passwordChangedAt?: Date;
+
+  @OneToMany(() => RefreshToken, (refreshToken) => refreshToken.user)
+  refreshTokens: RefreshToken[];
 }
