@@ -9,11 +9,7 @@ import {
   Query,
   ValidationPipe,
 } from '@nestjs/common';
-import { 
-  CreateNotificationDto, 
-  NotificationFilterDto,
-  MarkAsReadDto 
-} from './dto/notifications.dto';
+import { CreateNotificationDto, NotificationFilterDto } from './dto/notifications.dto';
 import { NotificationsService } from './notifications.service';
 
 @Controller('notifications')
@@ -60,6 +56,6 @@ export class NotificationsController {
 
   @Post('broadcast')
   async broadcastNotification(@Body(ValidationPipe) createDto: CreateNotificationDto) {
-    return this.notificationsService.broadcastNotification(createDto);
+    return Promise.resolve(this.notificationsService.broadcastNotification(createDto));
   }
 }

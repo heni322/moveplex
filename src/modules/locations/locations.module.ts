@@ -3,7 +3,6 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { HttpModule } from '@nestjs/axios';
 import { ConfigModule } from '@nestjs/config';
 
-
 import { LocationsController } from './locations.controller';
 import { LocationsService } from './services/locations.service';
 import { GeocodingService } from './services/geocoding.service';
@@ -17,12 +16,7 @@ import { DriverLocationGateway } from './gateways/driver-location.gateway';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([
-      DriverProfile,
-      Ride,
-      RideTracking,
-      SurgePricing,
-    ]),
+    TypeOrmModule.forFeature([DriverProfile, Ride, RideTracking, SurgePricing]),
     HttpModule,
     ConfigModule,
   ],
@@ -34,11 +28,6 @@ import { DriverLocationGateway } from './gateways/driver-location.gateway';
     PostgisService,
     DriverLocationGateway,
   ],
-  exports: [
-    LocationsService,
-    GeocodingService,
-    RoutingService,
-    PostgisService,
-  ],
+  exports: [LocationsService, GeocodingService, RoutingService, PostgisService],
 })
 export class LocationsModule {}

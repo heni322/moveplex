@@ -1,4 +1,3 @@
-// dto/driver-profile.dto.ts
 import {
   IsString,
   IsNotEmpty,
@@ -38,14 +37,24 @@ export class CreateDriverProfileDto {
   @IsNumber()
   @Min(-90)
   @Max(90)
-  @Transform(({ value }) => parseFloat(value))
+  @Transform(({ value }: { value: string | number }) => {
+    if (typeof value === 'string') {
+      return parseFloat(value);
+    }
+    return value;
+  })
   currentLatitude?: number;
 
   @IsOptional()
   @IsNumber()
   @Min(-180)
   @Max(180)
-  @Transform(({ value }) => parseFloat(value))
+  @Transform(({ value }: { value: string | number }) => {
+    if (typeof value === 'string') {
+      return parseFloat(value);
+    }
+    return value;
+  })
   currentLongitude?: number;
 }
 
@@ -68,14 +77,24 @@ export class UpdateDriverProfileDto {
   @IsNumber()
   @Min(-90)
   @Max(90)
-  @Transform(({ value }) => parseFloat(value))
+  @Transform(({ value }: { value: string | number }) => {
+    if (typeof value === 'string') {
+      return parseFloat(value);
+    }
+    return value;
+  })
   currentLatitude?: number;
 
   @IsOptional()
   @IsNumber()
   @Min(-180)
   @Max(180)
-  @Transform(({ value }) => parseFloat(value))
+  @Transform(({ value }: { value: string | number }) => {
+    if (typeof value === 'string') {
+      return parseFloat(value);
+    }
+    return value;
+  })
   currentLongitude?: number;
 
   @IsOptional()
@@ -86,13 +105,23 @@ export class UpdateDriverProfileDto {
   @IsNumber()
   @Min(1)
   @Max(5)
-  @Transform(({ value }) => parseFloat(value))
+  @Transform(({ value }: { value: string | number }) => {
+    if (typeof value === 'string') {
+      return parseFloat(value);
+    }
+    return value;
+  })
   rating?: number;
 
   @IsOptional()
   @IsNumber()
   @Min(0)
-  @Transform(({ value }) => parseInt(value))
+  @Transform(({ value }: { value: string | number }) => {
+    if (typeof value === 'string') {
+      return parseInt(value, 10);
+    }
+    return value;
+  })
   totalRides?: number;
 
   @IsOptional()
@@ -110,13 +139,23 @@ export class UpdateDriverLocationDto {
   @IsNumber()
   @Min(-90)
   @Max(90)
-  @Transform(({ value }) => parseFloat(value))
+  @Transform(({ value }: { value: string | number }) => {
+    if (typeof value === 'string') {
+      return parseFloat(value);
+    }
+    return value;
+  })
   latitude: number;
 
   @IsNumber()
   @Min(-180)
   @Max(180)
-  @Transform(({ value }) => parseFloat(value))
+  @Transform(({ value }: { value: string | number }) => {
+    if (typeof value === 'string') {
+      return parseFloat(value);
+    }
+    return value;
+  })
   longitude: number;
 }
 

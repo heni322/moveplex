@@ -4,7 +4,6 @@ import { SurgePricing } from 'src/database/entities/surge-pricing.entity';
 import { SurgePricingController } from './surge-pricing.controller';
 import { SurgePricingService } from './surge-pricing.service';
 
-
 @Module({
   imports: [TypeOrmModule.forFeature([SurgePricing])],
   controllers: [SurgePricingController],

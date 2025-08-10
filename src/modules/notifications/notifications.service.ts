@@ -1,13 +1,24 @@
-import {
-  Injectable,
-  NotFoundException,
-  BadRequestException,
-  Logger,
-} from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, FindManyOptions } from 'typeorm';
-import { BulkNotificationDto, CreateNotificationDto, NotificationFilterDto, UpdateNotificationStatusDto } from './dto/notifications.dto';
+import { Repository } from 'typeorm';
+import {
+  BulkNotificationDto,
+  CreateNotificationDto,
+  NotificationFilterDto,
+  UpdateNotificationStatusDto,
+} from './dto/notifications.dto';
 import { NotificationStatus, Notification } from 'src/database/entities/notification.entity';
+
+// Define interfaces for query results to fix typing issues
+interface TypeStatsResult {
+  type: string;
+  count: string;
+}
+
+interface StatusStatsResult {
+  status: string;
+  count: string;
+}
 
 @Injectable()
 export class NotificationsService {
@@ -27,7 +38,7 @@ export class NotificationsService {
       });
 
       const savedNotification = await this.notificationRepository.save(notification);
-    //   this.logger.log(`Notification created with ID: ${savedNotification.id}`);
+      //   this.logger.log(`Notification created with ID: ${savedNotification.id}`);
 
       // Here you would typically trigger the actual notification sending
       // await this.sendNotification(savedNotification);
@@ -62,7 +73,15 @@ export class NotificationsService {
     limit: number;
     totalPages: number;
   }> {
-    const { page = 1, limit = 20, type, status, isRead, sortBy = 'createdAt', sortOrder = 'DESC' } = filterDto;
+    const {
+      page = 1,
+      limit = 20,
+      type,
+      status,
+      isRead,
+      sortBy = 'createdAt',
+      sortOrder = 'DESC',
+    } = filterDto;
 
     const queryBuilder = this.notificationRepository
       .createQueryBuilder('notification')
@@ -123,7 +142,7 @@ export class NotificationsService {
     );
 
     this.logger.log(`Marked ${result.affected} notifications as read for user ${userId}`);
-    return { updatedCount: result.affected || 0 };
+    return { updatedCount: result.affected ?? 0 };
   }
 
   async deleteNotification(notificationId: string): Promise<void> {
@@ -144,10 +163,10 @@ export class NotificationsService {
     return { count };
   }
 
-  async broadcastNotification(createDto: CreateNotificationDto): Promise<{
+  broadcastNotification(createDto: CreateNotificationDto): {
     message: string;
     totalSent: number;
-  }> {
+  } {
     // This is a simplified version - in a real app, you'd want to:
     // 1. Get all active users or use a user service
     // 2. Create notifications in batches for better performance
@@ -156,7 +175,7 @@ export class NotificationsService {
     try {
       // For demo purposes, we'll assume you have a way to get all user IDs
       // In practice, you might want to pass user IDs or use criteria
-      const notification = this.notificationRepository.create({
+      this.notificationRepository.create({
         ...createDto,
         status: NotificationStatus.PENDING,
         isRead: false,
@@ -164,7 +183,7 @@ export class NotificationsService {
 
       // This is a placeholder - you'd implement actual broadcast logic
       this.logger.log('Broadcasting notification to all users');
-      
+
       return {
         message: 'Broadcast notification initiated',
         totalSent: 1, // This would be the actual count
@@ -207,7 +226,7 @@ export class NotificationsService {
     const notification = await this.getNotification(notificationId);
 
     Object.assign(notification, updateDto);
-    
+
     if (updateDto.status === NotificationStatus.SENT && !notification.sentAt) {
       notification.sentAt = new Date();
     }
@@ -231,7 +250,7 @@ export class NotificationsService {
       .execute();
 
     this.logger.log(`Cleaned up ${result.affected} old notifications`);
-    return { deletedCount: result.affected || 0 };
+    return { deletedCount: result.affected ?? 0 };
   }
 
   // Helper method to get notification statistics
@@ -248,8 +267,8 @@ export class NotificationsService {
       this.notificationRepository.count({ where: { ...whereClause, isRead: false } }),
     ]);
 
-    // Get counts by type and status
-    const typeStats = await this.notificationRepository
+    // Get counts by type and status with proper typing
+    const typeStats: TypeStatsResult[] = await this.notificationRepository
       .createQueryBuilder('notification')
       .select('notification.type', 'type')
       .addSelect('COUNT(*)', 'count')
@@ -257,7 +276,7 @@ export class NotificationsService {
       .groupBy('notification.type')
       .getRawMany();
 
-    const statusStats = await this.notificationRepository
+    const statusStats: StatusStatsResult[] = await this.notificationRepository
       .createQueryBuilder('notification')
       .select('notification.status', 'status')
       .addSelect('COUNT(*)', 'count')
@@ -265,15 +284,22 @@ export class NotificationsService {
       .groupBy('notification.status')
       .getRawMany();
 
-    const byType = typeStats.reduce((acc, { type, count }) => {
-      acc[type] = parseInt(count);
-      return acc;
-    }, {});
+    // Fixed: Properly typed reduce functions
+    const byType: Record<string, number> = typeStats.reduce(
+      (acc: Record<string, number>, item: TypeStatsResult) => {
+        acc[item.type] = parseInt(item.count, 10);
+        return acc;
+      },
+      {},
+    );
 
-    const byStatus = statusStats.reduce((acc, { status, count }) => {
-      acc[status] = parseInt(count);
-      return acc;
-    }, {});
+    const byStatus: Record<string, number> = statusStats.reduce(
+      (acc: Record<string, number>, item: StatusStatsResult) => {
+        acc[item.status] = parseInt(item.count, 10);
+        return acc;
+      },
+      {},
+    );
 
     return {
       total,

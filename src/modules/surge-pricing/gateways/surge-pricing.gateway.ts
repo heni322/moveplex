@@ -1,7 +1,15 @@
-import { Logger } from "@nestjs/common";
-import { ConnectedSocket, MessageBody, OnGatewayConnection, OnGatewayDisconnect, SubscribeMessage, WebSocketGateway, WebSocketServer } from "@nestjs/websockets";
+import { Logger } from '@nestjs/common';
+import {
+  ConnectedSocket,
+  MessageBody,
+  OnGatewayConnection,
+  OnGatewayDisconnect,
+  SubscribeMessage,
+  WebSocketGateway,
+  WebSocketServer,
+} from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
-import { LocationsService } from "src/modules/locations/services/locations.service";
+import { LocationsService } from 'src/modules/locations/services/locations.service';
 
 @WebSocketGateway({
   namespace: 'surge-pricing',
@@ -17,7 +25,7 @@ export class SurgePricingGateway implements OnGatewayConnection, OnGatewayDiscon
 
   async handleConnection(client: Socket) {
     this.logger.log(`Client connected to surge pricing: ${client.id}`);
-    
+
     // Send current surge areas on connection
     try {
       const surgeAreas = await this.locationsService.getActiveSurgeAreas();

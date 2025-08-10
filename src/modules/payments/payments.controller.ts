@@ -1,18 +1,5 @@
-import {
-  Controller,
-  Get,
-  Post,
-  Put,
-  Body,
-  Param,
-  Query,
-  ValidationPipe,
-} from '@nestjs/common';
-import { 
-  CreatePaymentDto, 
-  ProcessPaymentDto, 
-  PaymentFilterDto 
-} from './dto/payments.dto';
+import { Controller, Get, Post, Put, Body, Param, Query, ValidationPipe } from '@nestjs/common';
+import { CreatePaymentDto, ProcessPaymentDto, PaymentFilterDto } from './dto/payments.dto';
 import { PaymentsService } from './payments.service';
 
 @Controller('payments')
@@ -43,10 +30,7 @@ export class PaymentsController {
   }
 
   @Put(':paymentId/refund')
-  async refundPayment(
-    @Param('paymentId') paymentId: string,
-    @Body('amount') amount?: number,
-  ) {
+  async refundPayment(@Param('paymentId') paymentId: string, @Body('amount') amount?: number) {
     return this.paymentsService.refundPayment(paymentId, amount);
   }
 

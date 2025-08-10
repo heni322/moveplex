@@ -7,9 +7,25 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { RatingReview } from 'src/database/entities/rating-review.entity';
-import { Repository, Between } from 'typeorm';
-import { CreateRatingDto, DriverRatingStatsDto, RatingFilterDto, RatingHistoryResponseDto, RatingResponseDto, RatingStatsDto, UserAverageRatingDto } from './dto/ratings.dto';
+import { Repository } from 'typeorm';
+import {
+  CreateRatingDto,
+  DriverRatingStatsDto,
+  RatingFilterDto,
+  RatingHistoryResponseDto,
+  RatingResponseDto,
+  RatingStatsDto,
+  UserAverageRatingDto,
+} from './dto/ratings.dto';
 
+// Type definitions for raw query results
+interface AverageRatingResult {
+  average: string | null;
+}
+
+interface CountResult {
+  total: string;
+}
 
 @Injectable()
 export class RatingsService {
@@ -29,9 +45,7 @@ export class RatingsService {
     });
 
     if (existingRating) {
-      throw new ConflictException(
-        'Rating already exists for this ride and user combination',
-      );
+      throw new ConflictException('Rating already exists for this ride and user combination');
     }
 
     // Validate that user is not rating themselves
@@ -43,7 +57,7 @@ export class RatingsService {
       const rating = this.ratingRepository.create(createDto);
       const savedRating = await this.ratingRepository.save(rating);
       return this.mapToResponseDto(savedRating);
-    } catch (error) {
+    } catch {
       throw new InternalServerErrorException('Failed to create rating');
     }
   }
@@ -129,17 +143,17 @@ export class RatingsService {
     const [ratings, total] = await queryBuilder.getManyAndCount();
 
     // Calculate average rating for the filtered results
-    const avgResult = await this.ratingRepository
+    const avgResult = (await this.ratingRepository
       .createQueryBuilder('rating')
       .select('AVG(rating.rating)', 'average')
       .where(queryBuilder.getQuery().split('FROM')[1].split('ORDER BY')[0])
       .setParameters(queryBuilder.getParameters())
-      .getRawOne();
+      .getRawOne()) as AverageRatingResult;
 
     const averageRating = Number(avgResult.average) || 0;
 
     return {
-      ratings: ratings.map((rating) => this.mapToResponseDto(rating)),
+      ratings: ratings.map(rating => this.mapToResponseDto(rating)),
       total,
       page,
       limit,
@@ -155,7 +169,7 @@ export class RatingsService {
       order: { createdAt: 'DESC' },
     });
 
-    return ratings.map((rating) => this.mapToResponseDto(rating));
+    return ratings.map(rating => this.mapToResponseDto(rating));
   }
 
   async getUserRatingsReceived(
@@ -174,16 +188,16 @@ export class RatingsService {
     });
 
     // Calculate average rating
-    const avgResult = await this.ratingRepository
+    const avgResult = (await this.ratingRepository
       .createQueryBuilder('rating')
       .select('AVG(rating.rating)', 'average')
       .where('rating.ratedUserId = :userId', { userId })
-      .getRawOne();
+      .getRawOne()) as AverageRatingResult;
 
     const averageRating = Number(avgResult.average) || 0;
 
     return {
-      ratings: ratings.map((rating) => this.mapToResponseDto(rating)),
+      ratings: ratings.map(rating => this.mapToResponseDto(rating)),
       total,
       page,
       limit,
@@ -208,16 +222,16 @@ export class RatingsService {
     });
 
     // Calculate average rating given
-    const avgResult = await this.ratingRepository
+    const avgResult = (await this.ratingRepository
       .createQueryBuilder('rating')
       .select('AVG(rating.rating)', 'average')
       .where('rating.ratedById = :userId', { userId })
-      .getRawOne();
+      .getRawOne()) as AverageRatingResult;
 
     const averageRating = Number(avgResult.average) || 0;
 
     return {
-      ratings: ratings.map((rating) => this.mapToResponseDto(rating)),
+      ratings: ratings.map(rating => this.mapToResponseDto(rating)),
       total,
       page,
       limit,
@@ -232,12 +246,12 @@ export class RatingsService {
         .createQueryBuilder('rating')
         .select('AVG(rating.rating)', 'average')
         .where('rating.ratedUserId = :userId', { userId })
-        .getRawOne(),
+        .getRawOne() as Promise<AverageRatingResult>,
       this.ratingRepository
         .createQueryBuilder('rating')
         .select('COUNT(*)', 'total')
         .where('rating.ratedUserId = :userId', { userId })
-        .getRawOne(),
+        .getRawOne() as Promise<CountResult>,
       this.ratingRepository.find({
         where: { ratedUserId: userId },
         relations: ['ratedBy'],
@@ -253,7 +267,7 @@ export class RatingsService {
       userId,
       averageRating: Math.round(averageRating * 10) / 10,
       totalRatings,
-      recentRatings: recentRatings.map((rating) => this.mapToResponseDto(rating)),
+      recentRatings: recentRatings.map(rating => this.mapToResponseDto(rating)),
     };
   }
 
@@ -292,16 +306,16 @@ export class RatingsService {
 
     // Calculate distribution
     const distribution: { [key: string]: number } = {};
-    ratings.forEach((rating) => {
+    ratings.forEach(rating => {
       const key = Math.floor(rating.rating).toString();
       distribution[key] = (distribution[key] || 0) + 1;
     });
 
     // Calculate top tags
     const tagCounts: { [key: string]: number } = {};
-    ratings.forEach((rating) => {
+    ratings.forEach(rating => {
       if (rating.tags) {
-        rating.tags.forEach((tag) => {
+        rating.tags.forEach(tag => {
           tagCounts[tag] = (tagCounts[tag] || 0) + 1;
         });
       }
@@ -324,6 +338,12 @@ export class RatingsService {
     const sixMonthsAgo = new Date();
     sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
 
+    interface MonthlyStatsResult {
+      month: string;
+      averageRating: string;
+      totalRatings: string;
+    }
+
     const monthlyData = await this.ratingRepository
       .createQueryBuilder('rating')
       .select("DATE_TRUNC('month', rating.createdAt)", 'month')
@@ -335,7 +355,7 @@ export class RatingsService {
       .orderBy('month', 'DESC')
       .getRawMany();
 
-    return monthlyData.map((data) => ({
+    return monthlyData.map((data: MonthlyStatsResult) => ({
       month: data.month,
       averageRating: Math.round(Number(data.averageRating) * 10) / 10,
       totalRatings: Number(data.totalRatings),
@@ -351,8 +371,8 @@ export class RatingsService {
     });
 
     return ratings
-      .filter((rating) => rating.review && rating.review.trim().length > 0)
-      .map((rating) => ({
+      .filter(rating => rating.review && rating.review.trim().length > 0)
+      .map(rating => ({
         rating: rating.rating,
         review: rating.review!,
         ratedBy: `${rating.ratedBy?.firstName} ${rating.ratedBy?.lastName}`.trim(),
@@ -397,6 +417,12 @@ export class RatingsService {
 
   // Additional utility methods
   async getTopRatedUsers(limit: number = 10) {
+    interface TopRatedUserResult {
+      userId: string;
+      averageRating: string;
+      totalRatings: string;
+    }
+
     const result = await this.ratingRepository
       .createQueryBuilder('rating')
       .select('rating.ratedUserId', 'userId')
@@ -409,7 +435,7 @@ export class RatingsService {
       .limit(limit)
       .getRawMany();
 
-    return result.map((data) => ({
+    return result.map((data: TopRatedUserResult) => ({
       userId: data.userId,
       averageRating: Math.round(Number(data.averageRating) * 10) / 10,
       totalRatings: Number(data.totalRatings),

@@ -1,13 +1,13 @@
-import { 
-  IsString, 
-  IsNumber, 
-  IsEnum, 
-  IsOptional, 
+import {
+  IsString,
+  IsNumber,
+  IsEnum,
+  IsOptional,
   IsBoolean,
-  Min, 
-  Max, 
+  Min,
+  Max,
   Length,
-  Matches 
+  Matches,
 } from 'class-validator';
 import { Transform } from 'class-transformer';
 import { VehicleType } from 'src/common/enums/vehicle-types.enum';
@@ -33,7 +33,7 @@ export class CreateVehicleDto {
   @IsString()
   @Length(1, 20)
   @Matches(/^[A-Z0-9\-\s]+$/i, {
-    message: 'License plate must contain only letters, numbers, hyphens, and spaces'
+    message: 'License plate must contain only letters, numbers, hyphens, and spaces',
   })
   licensePlate: string;
 
@@ -73,7 +73,7 @@ export class UpdateVehicleDto {
   @IsString()
   @Length(1, 20)
   @Matches(/^[A-Z0-9\-\s]+$/i, {
-    message: 'License plate must contain only letters, numbers, hyphens, and spaces'
+    message: 'License plate must contain only letters, numbers, hyphens, and spaces',
   })
   licensePlate?: string;
 

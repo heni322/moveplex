@@ -5,7 +5,6 @@ import { ConfigService } from '@nestjs/config';
 import { AuthService } from 'src/modules/auth/auth.service';
 import { TokenPayload } from '../interfaces/token-payload.interface';
 
-
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
   constructor(
@@ -15,7 +14,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
-      secretOrKey: configService.get<string>('JWT_SECRET') ?? "",
+      secretOrKey: configService.get<string>('JWT_SECRET') ?? '',
     });
   }
 
@@ -27,7 +26,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
 
     // Optionally validate user still exists and is active
     const user = await this.authService.validateUser(payload.sub);
-    
+
     return user;
   }
 }

@@ -13,6 +13,9 @@ import { Transform, Type } from 'class-transformer';
 import { NotificationStatus } from 'src/database/entities/notification.entity';
 import { NotificationType } from 'src/common/enums/notification-types.enum';
 
+// Define a type for notification data to avoid 'any'
+export type NotificationData = Record<string, unknown>;
+
 export class CreateNotificationDto {
   @IsUUID()
   userId: string;
@@ -28,7 +31,7 @@ export class CreateNotificationDto {
 
   @IsOptional()
   @IsObject()
-  data?: any;
+  data?: NotificationData;
 }
 
 export class NotificationFilterDto {
@@ -42,10 +45,10 @@ export class NotificationFilterDto {
 
   @IsOptional()
   @IsBoolean()
-  @Transform(({ value }) => {
+  @Transform(({ value }): boolean => {
     if (value === 'true') return true;
     if (value === 'false') return false;
-    return value;
+    return Boolean(value);
   })
   isRead?: boolean;
 
@@ -99,5 +102,5 @@ export class BulkNotificationDto {
 
   @IsOptional()
   @IsObject()
-  data?: any;
+  data?: NotificationData;
 }

@@ -1,18 +1,5 @@
-import {
-  Controller,
-  Get,
-  Post,
-  Put,
-  Body,
-  Param,
-  Query,
-  ValidationPipe,
-} from '@nestjs/common';
-import { 
-  CreateUserDto, 
-  UpdateUserDto, 
-  UserFilterDto 
-} from './dto/users.dto';
+import { Controller, Get, Post, Put, Body, Param, Query, ValidationPipe } from '@nestjs/common';
+import { CreateUserDto, UpdateUserDto, UserFilterDto } from './dto/users.dto';
 import { UsersService } from './users.service';
 
 @Controller('users')

@@ -1,16 +1,5 @@
-import {
-  Controller,
-  Get,
-  Post,
-  Body,
-  Param,
-  Query,
-  ValidationPipe,
-} from '@nestjs/common';
-import { 
-  CreateRatingDto, 
-  RatingFilterDto 
-} from './dto/ratings.dto';
+import { Controller, Get, Post, Body, Param, Query, ValidationPipe } from '@nestjs/common';
+import { CreateRatingDto, RatingFilterDto } from './dto/ratings.dto';
 import { RatingsService } from './ratings.service';
 
 @Controller('ratings')

@@ -156,20 +156,20 @@ export class Ride {
   cancelledAt?: Date;
 
   // Relations
-  @ManyToOne(() => User, (user) => user.ridesAsRider)
+  @ManyToOne(() => User, user => user.ridesAsRider)
   @JoinColumn({ name: 'rider_id' })
   rider: User;
 
-  @ManyToOne(() => User, (user) => user.ridesAsDriver)
+  @ManyToOne(() => User, user => user.ridesAsDriver)
   @JoinColumn({ name: 'driver_id' })
   driver?: User;
 
-  @OneToMany(() => RideTracking, (tracking) => tracking.ride)
+  @OneToMany(() => RideTracking, tracking => tracking.ride)
   trackingPoints: RideTracking[];
 
-  @OneToMany(() => Payment, (payment) => payment.ride)
+  @OneToMany(() => Payment, payment => payment.ride)
   payments: Payment[];
 
-  @OneToMany(() => RatingReview, (rating) => rating.ride)
+  @OneToMany(() => RatingReview, rating => rating.ride)
   ratings: RatingReview[];
 }

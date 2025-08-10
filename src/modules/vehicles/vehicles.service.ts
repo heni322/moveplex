@@ -1,16 +1,12 @@
-import { 
-  Injectable, 
-  NotFoundException, 
+import {
+  Injectable,
+  NotFoundException,
   ConflictException,
-  BadRequestException 
+  BadRequestException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { 
-  CreateVehicleDto, 
-  UpdateVehicleDto, 
-  VehicleFilterDto 
-} from './dto/vehicles.dto';
+import { CreateVehicleDto, UpdateVehicleDto, VehicleFilterDto } from './dto/vehicles.dto';
 import { Vehicle } from 'src/database/entities/vehicle.entity';
 
 @Injectable()
@@ -23,7 +19,7 @@ export class VehiclesService {
   async createVehicle(createDto: CreateVehicleDto): Promise<Vehicle> {
     // Check if license plate already exists
     const existingVehicle = await this.vehicleRepository.findOne({
-      where: { licensePlate: createDto.licensePlate.toUpperCase() }
+      where: { licensePlate: createDto.licensePlate.toUpperCase() },
     });
 
     if (existingVehicle) {
@@ -69,21 +65,21 @@ export class VehiclesService {
       page = 1,
       limit = 10,
       sortBy = 'createdAt',
-      sortOrder = 'DESC'
+      sortOrder = 'DESC',
     } = filterDto;
 
     const queryBuilder = this.vehicleRepository.createQueryBuilder('vehicle');
 
     // Apply filters
     if (make) {
-      queryBuilder.andWhere('LOWER(vehicle.make) LIKE LOWER(:make)', { 
-        make: `%${make}%` 
+      queryBuilder.andWhere('LOWER(vehicle.make) LIKE LOWER(:make)', {
+        make: `%${make}%`,
       });
     }
 
     if (model) {
-      queryBuilder.andWhere('LOWER(vehicle.model) LIKE LOWER(:model)', { 
-        model: `%${model}%` 
+      queryBuilder.andWhere('LOWER(vehicle.model) LIKE LOWER(:model)', {
+        model: `%${model}%`,
       });
     }
 
@@ -92,8 +88,8 @@ export class VehiclesService {
     }
 
     if (color) {
-      queryBuilder.andWhere('LOWER(vehicle.color) LIKE LOWER(:color)', { 
-        color: `%${color}%` 
+      queryBuilder.andWhere('LOWER(vehicle.color) LIKE LOWER(:color)', {
+        color: `%${color}%`,
       });
     }
 
@@ -110,7 +106,15 @@ export class VehiclesService {
     }
 
     // Apply sorting
-    const allowedSortFields = ['make', 'model', 'year', 'color', 'vehicleType', 'seats', 'createdAt'];
+    const allowedSortFields = [
+      'make',
+      'model',
+      'year',
+      'color',
+      'vehicleType',
+      'seats',
+      'createdAt',
+    ];
     const sortField = allowedSortFields.includes(sortBy) ? sortBy : 'createdAt';
     queryBuilder.orderBy(`vehicle.${sortField}`, sortOrder);
 
@@ -135,7 +139,7 @@ export class VehiclesService {
     // Check if license plate is being updated and if it already exists
     if (updateDto.licensePlate && updateDto.licensePlate.toUpperCase() !== vehicle.licensePlate) {
       const existingVehicle = await this.vehicleRepository.findOne({
-        where: { licensePlate: updateDto.licensePlate.toUpperCase() }
+        where: { licensePlate: updateDto.licensePlate.toUpperCase() },
       });
 
       if (existingVehicle) {
@@ -155,7 +159,7 @@ export class VehiclesService {
 
   async deleteVehicle(vehicleId: string): Promise<void> {
     const vehicle = await this.getVehicle(vehicleId);
-    
+
     // Check if vehicle has associated driver profiles
     if (vehicle.driverProfiles && vehicle.driverProfiles.length > 0) {
       throw new BadRequestException('Cannot delete vehicle with associated driver profiles');
@@ -166,7 +170,7 @@ export class VehiclesService {
 
   async verifyVehicle(vehicleId: string): Promise<Vehicle> {
     const vehicle = await this.getVehicle(vehicleId);
-    
+
     if (vehicle.isVerified) {
       throw new BadRequestException('Vehicle is already verified');
     }

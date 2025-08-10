@@ -15,15 +15,15 @@ import { RefreshToken } from 'src/database/entities/refresh-token.entity'; // Ad
 @Module({
   imports: [
     TypeOrmModule.forFeature([
-      User, 
-      DriverProfile, 
-      Ride, 
-      RefreshToken // Add RefreshToken entity here
-    ]), 
+      User,
+      DriverProfile,
+      Ride,
+      RefreshToken, // Add RefreshToken entity here
+    ]),
     PassportModule.register({ defaultStrategy: 'jwt' }),
     JwtModule.registerAsync({
       imports: [ConfigModule],
-      useFactory: async (configService: ConfigService) => ({
+      useFactory: (configService: ConfigService) => ({
         secret: configService.get<string>('JWT_SECRET'),
         signOptions: { expiresIn: '60m' },
       }),

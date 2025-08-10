@@ -40,15 +40,15 @@ export class RatingReview {
   createdAt: Date;
 
   // Relations
-  @ManyToOne(() => Ride, (ride) => ride.ratings)
+  @ManyToOne(() => Ride, ride => ride.ratings)
   @JoinColumn({ name: 'ride_id' })
   ride: Ride;
 
-  @ManyToOne(() => User, (user) => user.ratingsGiven)
+  @ManyToOne(() => User, user => user.ratingsGiven)
   @JoinColumn({ name: 'rated_by_id' })
   ratedBy: User;
 
-  @ManyToOne(() => User, (user) => user.ratingsReceived)
+  @ManyToOne(() => User, user => user.ratingsReceived)
   @JoinColumn({ name: 'rated_user_id' })
   ratedUser: User;
 }

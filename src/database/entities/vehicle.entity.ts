@@ -1,13 +1,6 @@
-import {
-  Entity,
-  PrimaryGeneratedColumn,
-  Column,
-  CreateDateColumn,
-  OneToMany,
-} from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, OneToMany } from 'typeorm';
 import { DriverProfile } from './driver-profile.entity';
 import { VehicleType } from '../../common/enums/vehicle-types.enum';
-
 
 @Entity('vehicles')
 export class Vehicle {
@@ -46,6 +39,6 @@ export class Vehicle {
   createdAt: Date;
 
   // Relations
-  @OneToMany(() => DriverProfile, (driverProfile) => driverProfile.vehicle)
+  @OneToMany(() => DriverProfile, driverProfile => driverProfile.vehicle)
   driverProfiles: DriverProfile[];
 }

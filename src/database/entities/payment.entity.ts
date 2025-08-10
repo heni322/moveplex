@@ -28,7 +28,6 @@ export enum PaymentType {
 
 // Define PaymentStatus here instead of importing from ride.entity
 
-
 @Entity('payments')
 export class Payment {
   @PrimaryGeneratedColumn('uuid')
@@ -71,7 +70,7 @@ export class Payment {
   transactionId?: string;
 
   @Column({ name: 'gateway_response', type: 'jsonb', nullable: true })
-  gatewayResponse?: any;
+  gatewayResponse?: unknown;
 
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
@@ -80,11 +79,11 @@ export class Payment {
   updatedAt: Date;
 
   // Relations
-  @ManyToOne(() => User, (user) => user.payments)
+  @ManyToOne(() => User, user => user.payments)
   @JoinColumn({ name: 'user_id' })
   user: User;
 
-  @ManyToOne(() => Ride, (ride) => ride.payments)
+  @ManyToOne(() => Ride, ride => ride.payments)
   @JoinColumn({ name: 'ride_id' })
   ride?: Ride;
 }

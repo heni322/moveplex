@@ -59,16 +59,19 @@ console.log('=== END ENVIRONMENT DEBUG ===');
 
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
-      useFactory: async (configService: ConfigService) => {
+      useFactory: (configService: ConfigService) => {
         // Debug ConfigService values
         console.log('=== CONFIG SERVICE DEBUG ===');
         console.log('Config - DATABASE_HOST:', configService.get<string>('DATABASE_HOST'));
         console.log('Config - DATABASE_PORT:', configService.get<number>('DATABASE_PORT'));
         console.log('Config - DATABASE_USER:', configService.get<string>('DATABASE_USER'));
-        console.log('Config - DATABASE_PASSWORD:', configService.get<string>('DATABASE_PASSWORD') ? '***HIDDEN***' : 'UNDEFINED');
+        console.log(
+          'Config - DATABASE_PASSWORD:',
+          configService.get<string>('DATABASE_PASSWORD') ? '***HIDDEN***' : 'UNDEFINED',
+        );
         console.log('Config - DATABASE_NAME:', configService.get<string>('DATABASE_NAME'));
         console.log('=== END CONFIG SERVICE DEBUG ===');
-        
+
         const dbConfig = {
           type: 'postgres' as const,
           host: configService.get<string>('DATABASE_HOST'),
@@ -77,36 +80,36 @@ console.log('=== END ENVIRONMENT DEBUG ===');
           password: configService.get<string>('DATABASE_PASSWORD'),
           database: configService.get<string>('DATABASE_NAME'),
           entities: [
-            User, 
-            DriverProfile, 
-            Vehicle, 
-            RideRequest, 
-            RideTracking, 
-            Payment, 
+            User,
+            DriverProfile,
+            Vehicle,
+            RideRequest,
+            RideTracking,
+            Payment,
             SurgePricing,
             Ride,
             RatingReview,
             Notification,
-            RefreshToken
+            RefreshToken,
           ],
           synchronize: false,
           logging: true,
           migrations: ['dist/database/migrations/**/*{.ts,.js}'],
           migrationsRun: false, // Temporarily disabled to debug
         };
-        
+
         console.log('=== FINAL DB CONFIG ===');
         console.log('Final DB Config:', {
           ...dbConfig,
-          password: dbConfig.password ? '***HIDDEN***' : 'UNDEFINED'
+          password: dbConfig.password ? '***HIDDEN***' : 'UNDEFINED',
         });
         console.log('=== END FINAL DB CONFIG ===');
-        
+
         return dbConfig;
       },
       inject: [ConfigService],
     }),
-    
+
     // Only keep the module imports
     AuthModule,
     DriverProfileModule,

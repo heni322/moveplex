@@ -1,26 +1,30 @@
-import {
-  Controller,
-  Get,
-  Post,
-  Body,
-  Query,
-  Param,
-  ValidationPipe,
-} from '@nestjs/common';
-import {
-  LocationDto,
-  FindNearbyDriversDto,
-  GeocodeDto,
-  RouteDto,
-} from './dto/location.dto';
+import { Controller, Get, Post, Body, Query, Param, ValidationPipe } from '@nestjs/common';
+import { LocationDto, FindNearbyDriversDto, GeocodeDto, RouteDto } from './dto/location.dto';
 import { LocationsService } from './services/locations.service';
+import {
+  NearbyDriver,
+  GeocodeResult,
+  RouteResult,
+  SurgeArea,
+} from './interfaces/location.interfaces';
+
+// Add the missing FareEstimate interface locally or add it to your interfaces file
+interface FareEstimate {
+  basefare: number;
+  surgeMultiplier: number;
+  estimatedFare: number;
+  distance: number;
+  duration: number;
+}
 
 @Controller('locations')
 export class LocationsController {
   constructor(private readonly locationsService: LocationsService) {}
 
   @Get('drivers/nearby')
-  async findNearbyDrivers(@Query(ValidationPipe) query: FindNearbyDriversDto) {
+  async findNearbyDrivers(
+    @Query(ValidationPipe) query: FindNearbyDriversDto,
+  ): Promise<NearbyDriver[]> {
     return this.locationsService.findNearbyDrivers(
       { latitude: query.latitude, longitude: query.longitude },
       query.radiusKm,
@@ -32,7 +36,7 @@ export class LocationsController {
   async updateDriverLocation(
     @Param('driverId') driverId: string,
     @Body(ValidationPipe) location: LocationDto,
-  ) {
+  ): Promise<{ success: boolean }> {
     await this.locationsService.updateDriverLocation(driverId, {
       latitude: location.latitude,
       longitude: location.longitude,
@@ -41,16 +45,12 @@ export class LocationsController {
   }
 
   @Get('geocode')
-  async geocode(@Query(ValidationPipe) query: GeocodeDto) {
-    return this.locationsService.geocodeAddress(
-      query.query,
-      query.limit,
-      query.countryCode,
-    );
+  async geocode(@Query(ValidationPipe) query: GeocodeDto): Promise<GeocodeResult[]> {
+    return this.locationsService.geocodeAddress(query.query, query.limit, query.countryCode);
   }
 
   @Post('reverse-geocode')
-  async reverseGeocode(@Body(ValidationPipe) location: LocationDto) {
+  async reverseGeocode(@Body(ValidationPipe) location: LocationDto): Promise<GeocodeResult | null> {
     return this.locationsService.reverseGeocodeLocation({
       latitude: location.latitude,
       longitude: location.longitude,
@@ -58,7 +58,7 @@ export class LocationsController {
   }
 
   @Post('route')
-  async calculateRoute(@Body(ValidationPipe) routeDto: RouteDto) {
+  async calculateRoute(@Body(ValidationPipe) routeDto: RouteDto): Promise<RouteResult> {
     return this.locationsService.calculateRoute(
       {
         latitude: routeDto.startLatitude,
@@ -75,7 +75,7 @@ export class LocationsController {
   @Post('fare-estimate')
   async calculateFareEstimate(
     @Body(ValidationPipe) body: RouteDto & { vehicleType?: string },
-  ) {
+  ): Promise<FareEstimate> {
     return this.locationsService.calculateFareEstimate(
       {
         latitude: body.startLatitude,
@@ -93,7 +93,7 @@ export class LocationsController {
   async addTrackingPoint(
     @Param('rideId') rideId: string,
     @Body(ValidationPipe) body: LocationDto & { speed?: number; heading?: number },
-  ) {
+  ): Promise<{ success: boolean }> {
     await this.locationsService.addRideTrackingPoint(
       rideId,
       { latitude: body.latitude, longitude: body.longitude },
@@ -104,17 +104,14 @@ export class LocationsController {
   }
 
   @Get('surge-areas')
-  async getSurgeAreas() {
+  async getSurgeAreas(): Promise<SurgeArea[]> {
     return this.locationsService.getActiveSurgeAreas();
   }
 
   @Post('distance')
   async calculateDistance(
-    @Body(ValidationPipe) body: {
-      point1: LocationDto;
-      point2: LocationDto;
-    },
-  ) {
+    @Body(ValidationPipe) body: { point1: LocationDto; point2: LocationDto },
+  ): Promise<{ distanceKm: number }> {
     const distance = await this.locationsService.calculateDistance(
       {
         latitude: body.point1.latitude,

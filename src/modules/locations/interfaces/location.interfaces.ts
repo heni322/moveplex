@@ -43,3 +43,15 @@ export interface SurgeArea {
   multiplier: number;
   isActive: boolean;
 }
+
+export interface FareEstimate {
+  estimatedFare: number;
+  currency: string;
+  surgeMultiplier: number;
+  breakdown?: {
+    baseFare: number;
+    distanceFare: number;
+    timeFare: number;
+    surgeFare: number;
+  };
+}

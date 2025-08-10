@@ -7,16 +7,8 @@ import { RideRequestsService } from './ride-requests.service';
 import { DriverProfile } from 'src/database/entities/driver-profile.entity';
 import { LocationsModule } from '../locations/locations.module';
 
-
 @Module({
-  imports: [
-    TypeOrmModule.forFeature([
-      RideRequest,
-      User,
-      DriverProfile,
-    ]),
-    LocationsModule
-  ],
+  imports: [TypeOrmModule.forFeature([RideRequest, User, DriverProfile]), LocationsModule],
   controllers: [RideRequestsController],
   providers: [RideRequestsService],
   exports: [RideRequestsService],

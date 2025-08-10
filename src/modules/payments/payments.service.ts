@@ -3,16 +3,29 @@ import {
   NotFoundException,
   BadRequestException,
   InternalServerErrorException,
+  Logger,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Payment } from 'src/database/entities/payment.entity';
-import { Repository, Between, MoreThanOrEqual, LessThanOrEqual } from 'typeorm';
-import { CreatePaymentDto, PaymentFilterDto, PaymentHistoryResponseDto, PaymentResponseDto, ProcessPaymentDto } from './dto/payments.dto';
+import { Repository } from 'typeorm';
+import {
+  CreatePaymentDto,
+  PaymentFilterDto,
+  PaymentHistoryResponseDto,
+  PaymentResponseDto,
+  ProcessPaymentDto,
+} from './dto/payments.dto';
 import { PaymentStatus } from '../../common/enums/payment-status.enum';
 
+// Define interfaces for query results to fix typing issues
+interface TotalAmountResult {
+  total: string | null;
+}
 
 @Injectable()
 export class PaymentsService {
+  private readonly logger = new Logger(PaymentsService.name);
+
   constructor(
     @InjectRepository(Payment)
     private readonly paymentRepository: Repository<Payment>,
@@ -28,6 +41,7 @@ export class PaymentsService {
       const savedPayment = await this.paymentRepository.save(payment);
       return this.mapToResponseDto(savedPayment);
     } catch (error) {
+      this.logger.error('Failed to create payment', error);
       throw new InternalServerErrorException('Failed to create payment');
     }
   }
@@ -52,11 +66,12 @@ export class PaymentsService {
       // Update payment with processing results
       payment.transactionId = processDto.transactionId;
       payment.gatewayResponse = processDto.gatewayResponse;
-      payment.status = processDto.status || PaymentStatus.COMPLETED;
+      payment.status = processDto.status ?? PaymentStatus.COMPLETED;
 
       const updatedPayment = await this.paymentRepository.save(payment);
       return this.mapToResponseDto(updatedPayment);
     } catch (error) {
+      this.logger.error('Failed to process payment', error);
       throw new InternalServerErrorException('Failed to process payment');
     }
   }
@@ -147,7 +162,7 @@ export class PaymentsService {
     const [payments, total] = await queryBuilder.getManyAndCount();
 
     return {
-      payments: payments.map((payment) => this.mapToResponseDto(payment)),
+      payments: payments.map(payment => this.mapToResponseDto(payment)),
       total,
       page,
       limit,
@@ -155,10 +170,7 @@ export class PaymentsService {
     };
   }
 
-  async refundPayment(
-    paymentId: string,
-    amount?: number,
-  ): Promise<PaymentResponseDto> {
+  async refundPayment(paymentId: string, amount?: number): Promise<PaymentResponseDto> {
     const payment = await this.paymentRepository.findOne({
       where: { id: paymentId },
     });
@@ -172,24 +184,35 @@ export class PaymentsService {
     }
 
     // If no amount specified, refund the full amount
-    const refundAmount = amount || payment.amount;
+    const refundAmount = amount ?? payment.amount;
 
     if (refundAmount > payment.amount) {
       throw new BadRequestException('Refund amount cannot exceed payment amount');
     }
 
     try {
-      // Create a new refund payment record
-      const refundPayment = this.paymentRepository.create({
-        userId: payment.userId,
-        rideId: payment.rideId,
+      // Create refund data object first
+      const refundData: Partial<Payment> = {
         amount: -refundAmount, // Negative amount for refund
         paymentMethod: payment.paymentMethod,
-        paymentType: 'refund' as any,
         status: PaymentStatus.COMPLETED,
-        transactionId: `refund_${payment.transactionId || payment.id}`,
-      });
+        transactionId: `refund_${payment.transactionId ?? payment.id}`,
+      };
 
+      // Only add properties that exist on the Payment entity
+      if ('userId' in payment) {
+        refundData.userId = payment.userId;
+      }
+      if ('rideId' in payment) {
+        refundData.rideId = payment.rideId;
+      }
+      if ('paymentType' in payment) {
+        // Use the same type as the original payment or set to a refund type
+        refundData.paymentType = payment.paymentType;
+      }
+
+      // Create a new refund payment record
+      const refundPayment = this.paymentRepository.create(refundData);
       const savedRefund = await this.paymentRepository.save(refundPayment);
 
       // Update original payment status if full refund
@@ -200,6 +223,7 @@ export class PaymentsService {
 
       return this.mapToResponseDto(savedRefund);
     } catch (error) {
+      this.logger.error('Failed to process refund', error);
       throw new InternalServerErrorException('Failed to process refund');
     }
   }
@@ -220,7 +244,7 @@ export class PaymentsService {
     });
 
     return {
-      payments: payments.map((payment) => this.mapToResponseDto(payment)),
+      payments: payments.map(payment => this.mapToResponseDto(payment)),
       total,
       page,
       limit,
@@ -235,7 +259,7 @@ export class PaymentsService {
       relations: ['user'],
     });
 
-    return payments.map((payment) => this.mapToResponseDto(payment));
+    return payments.map(payment => this.mapToResponseDto(payment));
   }
 
   // Helper method to map entity to response DTO
@@ -262,47 +286,52 @@ export class PaymentsService {
       order: { createdAt: 'DESC' },
     });
 
-    return payments.map((payment) => this.mapToResponseDto(payment));
+    return payments.map(payment => this.mapToResponseDto(payment));
   }
 
   async getTotalPaymentAmount(userId: string): Promise<number> {
-    const result = await this.paymentRepository
+    const result: TotalAmountResult | undefined = await this.paymentRepository
       .createQueryBuilder('payment')
       .select('SUM(payment.amount)', 'total')
       .where('payment.userId = :userId', { userId })
       .andWhere('payment.status = :status', { status: PaymentStatus.COMPLETED })
       .getRawOne();
 
-    return Number(result.total) || 0;
+    return Number(result?.total) || 0;
   }
 
-  async getPaymentStats(userId?: string) {
+  async getPaymentStats(userId?: string): Promise<{
+    totalPayments: number;
+    completedPayments: number;
+    failedPayments: number;
+    pendingPayments: number;
+    totalAmount: number;
+  }> {
     const queryBuilder = this.paymentRepository.createQueryBuilder('payment');
 
     if (userId) {
       queryBuilder.where('payment.userId = :userId', { userId });
     }
 
-    const [totalPayments, completedPayments, failedPayments, pendingPayments] =
-      await Promise.all([
-        queryBuilder.getCount(),
-        queryBuilder
-          .clone()
-          .andWhere('payment.status = :status', {
-            status: PaymentStatus.COMPLETED,
-          })
-          .getCount(),
-        queryBuilder
-          .clone()
-          .andWhere('payment.status = :status', { status: PaymentStatus.FAILED })
-          .getCount(),
-        queryBuilder
-          .clone()
-          .andWhere('payment.status = :status', { status: PaymentStatus.PENDING })
-          .getCount(),
-      ]);
+    const [totalPayments, completedPayments, failedPayments, pendingPayments] = await Promise.all([
+      queryBuilder.getCount(),
+      queryBuilder
+        .clone()
+        .andWhere('payment.status = :status', {
+          status: PaymentStatus.COMPLETED,
+        })
+        .getCount(),
+      queryBuilder
+        .clone()
+        .andWhere('payment.status = :status', { status: PaymentStatus.FAILED })
+        .getCount(),
+      queryBuilder
+        .clone()
+        .andWhere('payment.status = :status', { status: PaymentStatus.PENDING })
+        .getCount(),
+    ]);
 
-    const totalAmountResult = await queryBuilder
+    const totalAmountResult: TotalAmountResult | undefined = await queryBuilder
       .clone()
       .select('SUM(payment.amount)', 'total')
       .andWhere('payment.status = :status', { status: PaymentStatus.COMPLETED })
@@ -313,7 +342,7 @@ export class PaymentsService {
       completedPayments,
       failedPayments,
       pendingPayments,
-      totalAmount: Number(totalAmountResult.total) || 0,
+      totalAmount: Number(totalAmountResult?.total) || 0,
     };
   }
 }

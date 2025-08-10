@@ -1,7 +1,12 @@
 import { Injectable, CanActivate, ExecutionContext, ForbiddenException } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
+import { Request } from 'express';
 import { UserType } from 'src/common/enums/user-types.enum';
 import { User } from 'src/database/entities/user.entity';
+
+interface RequestWithUser extends Request {
+  user?: User;
+}
 
 @Injectable()
 export class RolesGuard implements CanActivate {
@@ -17,15 +22,15 @@ export class RolesGuard implements CanActivate {
       return true;
     }
 
-    const request = context.switchToHttp().getRequest();
-    const user: User = request.user;
+    const request = context.switchToHttp().getRequest<RequestWithUser>();
+    const user = request.user;
 
     if (!user) {
       throw new ForbiddenException('User not authenticated');
     }
 
     const hasRole = requiredRoles.includes(user.userType);
-    
+
     if (!hasRole) {
       throw new ForbiddenException('Insufficient permissions');
     }

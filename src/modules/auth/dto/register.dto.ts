@@ -1,4 +1,12 @@
-import { IsEmail, IsString, MinLength, IsEnum, IsOptional, IsPhoneNumber, IsDateString } from 'class-validator';
+import {
+  IsEmail,
+  IsString,
+  MinLength,
+  IsEnum,
+  IsOptional,
+  IsPhoneNumber,
+  IsDateString,
+} from 'class-validator';
 import { UserType } from 'src/common/enums/user-types.enum';
 
 export class RegisterDto {
@@ -25,7 +33,7 @@ export class RegisterDto {
   @IsOptional()
   @IsString()
   license_number?: string;
-  
+
   @IsOptional()
   @IsDateString()
   license_expiry?: Date;

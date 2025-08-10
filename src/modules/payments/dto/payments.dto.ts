@@ -10,7 +10,7 @@ import {
   IsObject,
   IsDateString,
 } from 'class-validator';
-import { Transform, Type } from 'class-transformer';
+import { Type } from 'class-transformer';
 import { PaymentMethod, PaymentType } from 'src/database/entities/payment.entity';
 import { PaymentStatus } from '../../../common/enums/payment-status.enum';
 
@@ -43,7 +43,7 @@ export class CreatePaymentDto {
 
   @IsOptional()
   @IsObject()
-  gatewayResponse?: any;
+  gatewayResponse?: unknown;
 }
 
 export class ProcessPaymentDto {
@@ -53,7 +53,7 @@ export class ProcessPaymentDto {
 
   @IsOptional()
   @IsObject()
-  gatewayResponse?: any;
+  gatewayResponse?: unknown;
 
   @IsOptional()
   @IsEnum(PaymentStatus)
@@ -143,7 +143,7 @@ export class PaymentResponseDto {
   paymentType: PaymentType;
   status: PaymentStatus;
   transactionId?: string;
-  gatewayResponse?: any;
+  gatewayResponse?: unknown;
   createdAt: Date;
   updatedAt: Date;
 }

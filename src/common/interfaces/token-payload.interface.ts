@@ -1,4 +1,4 @@
-import { UserType } from "../enums/user-types.enum";
+import { UserType } from '../enums/user-types.enum';
 
 export interface TokenPayload {
   sub: string;

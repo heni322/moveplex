@@ -50,7 +50,7 @@ export class RideTracking {
   recordedAt: Date;
 
   // Relations
-  @ManyToOne(() => Ride, (ride) => ride.trackingPoints)
+  @ManyToOne(() => Ride, ride => ride.trackingPoints)
   @JoinColumn({ name: 'ride_id' })
   ride: Ride;
 }

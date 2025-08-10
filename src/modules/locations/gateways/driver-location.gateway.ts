@@ -12,7 +12,6 @@ import { Logger, UseGuards } from '@nestjs/common';
 import { LocationsService } from '../services/locations.service';
 import { JwtAuthGuard } from 'src/common/guards/jwt-auth.guard';
 
-
 @WebSocketGateway({
   namespace: 'driver-tracking',
   cors: { origin: '*' },
@@ -26,11 +25,11 @@ export class DriverLocationGateway implements OnGatewayConnection, OnGatewayDisc
 
   constructor(private readonly locationsService: LocationsService) {}
 
-  async handleConnection(client: Socket) {
+  handleConnection(client: Socket) {
     this.logger.log(`Driver client connected: ${client.id}`);
   }
 
-  async handleDisconnect(client: Socket) {
+  handleDisconnect(client: Socket) {
     const driverId = this.connectedDrivers.get(client.id);
     if (driverId) {
       this.connectedDrivers.delete(client.id);
@@ -40,19 +39,20 @@ export class DriverLocationGateway implements OnGatewayConnection, OnGatewayDisc
 
   @UseGuards(JwtAuthGuard)
   @SubscribeMessage('driver:connect')
-  async handleDriverConnect(
+  handleDriverConnect(
     @MessageBody() data: { driverId: string },
     @ConnectedSocket() client: Socket,
   ) {
     this.connectedDrivers.set(client.id, data.driverId);
-    client.join(`driver:${data.driverId}`);
+    void client.join(`driver:${data.driverId}`);
     this.logger.log(`Driver ${data.driverId} connected and joined room`);
   }
 
   @UseGuards(JwtAuthGuard)
   @SubscribeMessage('driver:location_update')
   async handleLocationUpdate(
-    @MessageBody() data: {
+    @MessageBody()
+    data: {
       driverId: string;
       latitude: number;
       longitude: number;
@@ -80,15 +80,13 @@ export class DriverLocationGateway implements OnGatewayConnection, OnGatewayDisc
 
       client.emit('driver:location_updated', { success: true });
     } catch (error) {
-      client.emit('driver:location_updated', { success: false, error: error.message });
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      client.emit('driver:location_updated', { success: false, error: errorMessage });
     }
   }
 
   @SubscribeMessage('driver:status_change')
-  async handleDriverStatusChange(
-    @MessageBody() data: { driverId: string; status: string },
-    @ConnectedSocket() client: Socket,
-  ) {
+  handleDriverStatusChange(@MessageBody() data: { driverId: string; status: string }) {
     this.server.emit('driver:status_changed', {
       driverId: data.driverId,
       status: data.status,

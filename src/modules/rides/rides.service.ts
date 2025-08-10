@@ -88,8 +88,14 @@ export class RidesService {
   }
 
   async getRides(filterDto: RideFilterDto): Promise<PaginatedRidesResponseDto> {
-    const { page = 1, limit = 10, sortBy = 'requestedAt', sortOrder = 'DESC', ...filters } = filterDto;
-    
+    const {
+      page = 1,
+      limit = 10,
+      sortBy = 'requestedAt',
+      sortOrder = 'DESC',
+      ...filters
+    } = filterDto;
+
     const queryBuilder = this.rideRepository
       .createQueryBuilder('ride')
       .leftJoinAndSelect('ride.rider', 'rider')
@@ -113,7 +119,9 @@ export class RidesService {
     }
 
     if (filters.paymentStatus) {
-      queryBuilder.andWhere('ride.paymentStatus = :paymentStatus', { paymentStatus: filters.paymentStatus });
+      queryBuilder.andWhere('ride.paymentStatus = :paymentStatus', {
+        paymentStatus: filters.paymentStatus,
+      });
     }
 
     if (filters.startDate && filters.endDate) {
@@ -168,11 +176,7 @@ export class RidesService {
     const existingDriverRide = await this.rideRepository.findOne({
       where: {
         driverId,
-        status: In([
-          RideStatus.ACCEPTED,
-          RideStatus.DRIVER_ARRIVING,
-          RideStatus.IN_PROGRESS,
-        ]),
+        status: In([RideStatus.ACCEPTED, RideStatus.DRIVER_ARRIVING, RideStatus.IN_PROGRESS]),
       },
     });
 
@@ -299,7 +303,7 @@ export class RidesService {
 
     return this.rideTrackingRepository.find({
       where: { rideId },
-    //   order: { timestamp: 'ASC' },
+      //   order: { timestamp: 'ASC' },
     });
   }
 
@@ -474,26 +478,30 @@ export class RidesService {
       startedAt: ride.startedAt,
       completedAt: ride.completedAt,
       cancelledAt: ride.cancelledAt,
-      rider: ride.rider ? {
-        id: ride.rider.id,
-        firstName: ride.rider.firstName,
-        lastName: ride.rider.lastName,
-        phone: ride.rider.phone,
-        // rating: ride.rider.rating || 0,
-      } : undefined,
-      driver: ride.driver ? {
-        id: ride.driver.id,
-        firstName: ride.driver.firstName,
-        lastName: ride.driver.lastName,
-        phone: ride.driver.phone,
-        // rating: ride.driver.rating || 0,
-        // vehicle: ride.driver.vehicle ? {
-        //   make: ride.driver.vehicle.make,
-        //   model: ride.driver.vehicle.model,
-        //   licensePlate: ride.driver.vehicle.licensePlate,
-        //   color: ride.driver.vehicle.color,
-        // } : undefined,
-      } : undefined,
+      rider: ride.rider
+        ? {
+            id: ride.rider.id,
+            firstName: ride.rider.firstName,
+            lastName: ride.rider.lastName,
+            phone: ride.rider.phone,
+            // rating: ride.rider.rating || 0,
+          }
+        : undefined,
+      driver: ride.driver
+        ? {
+            id: ride.driver.id,
+            firstName: ride.driver.firstName,
+            lastName: ride.driver.lastName,
+            phone: ride.driver.phone,
+            // rating: ride.driver.rating || 0,
+            // vehicle: ride.driver.vehicle ? {
+            //   make: ride.driver.vehicle.make,
+            //   model: ride.driver.vehicle.model,
+            //   licensePlate: ride.driver.vehicle.licensePlate,
+            //   color: ride.driver.vehicle.color,
+            // } : undefined,
+          }
+        : undefined,
     };
   }
 }

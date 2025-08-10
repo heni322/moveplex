@@ -1,15 +1,9 @@
+import { Controller, Get, Post, Put, Body, Param, ValidationPipe } from '@nestjs/common';
 import {
-  Controller,
-  Get,
-  Post,
-  Put,
-  Body,
-  Param,
-  Query,
-  ValidationPipe,
-  UseGuards,
-} from '@nestjs/common';
-import { CreateDriverProfileDto, UpdateDriverProfileDto, UpdateDriverStatusDto } from './dto/driver-profile.dto';
+  CreateDriverProfileDto,
+  UpdateDriverProfileDto,
+  UpdateDriverStatusDto,
+} from './dto/driver-profile.dto';
 import { DriverProfileService } from './driver-profiles.service';
 
 @Controller('driver-profiles')
@@ -58,10 +52,7 @@ export class DriverProfileController {
   }
 
   @Put(':driverId/vehicle')
-  async assignVehicle(
-    @Param('driverId') driverId: string,
-    @Body('vehicleId') vehicleId: string,
-  ) {
+  async assignVehicle(@Param('driverId') driverId: string, @Body('vehicleId') vehicleId: string) {
     return this.driverProfileService.assignVehicle(driverId, vehicleId);
   }
 }

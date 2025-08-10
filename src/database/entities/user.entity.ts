@@ -14,7 +14,6 @@ import { RatingReview } from './rating-review.entity';
 import { UserType } from '../../common/enums/user-types.enum';
 import { RefreshToken } from './refresh-token.entity';
 
-
 @Entity('users')
 export class User {
   @PrimaryGeneratedColumn('uuid')
@@ -58,22 +57,22 @@ export class User {
   updatedAt: Date;
 
   // Relations
-  @OneToOne(() => DriverProfile, (driverProfile) => driverProfile.user)
+  @OneToOne(() => DriverProfile, driverProfile => driverProfile.user)
   driverProfile?: DriverProfile;
 
-  @OneToMany(() => Ride, (ride) => ride.rider)
+  @OneToMany(() => Ride, ride => ride.rider)
   ridesAsRider: Ride[];
 
-  @OneToMany(() => Ride, (ride) => ride.driver)
+  @OneToMany(() => Ride, ride => ride.driver)
   ridesAsDriver: Ride[];
 
-  @OneToMany(() => Payment, (payment) => payment.user)
+  @OneToMany(() => Payment, payment => payment.user)
   payments: Payment[];
 
-  @OneToMany(() => RatingReview, (rating) => rating.ratedBy)
+  @OneToMany(() => RatingReview, rating => rating.ratedBy)
   ratingsGiven: RatingReview[];
 
-  @OneToMany(() => RatingReview, (rating) => rating.ratedUser)
+  @OneToMany(() => RatingReview, rating => rating.ratedUser)
   ratingsReceived: RatingReview[];
 
   @Column({ name: 'failed_login_attempts', default: 0 })
@@ -88,6 +87,6 @@ export class User {
   @Column({ name: 'password_changed_at', nullable: true })
   passwordChangedAt?: Date;
 
-  @OneToMany(() => RefreshToken, (refreshToken) => refreshToken.user)
+  @OneToMany(() => RefreshToken, refreshToken => refreshToken.user)
   refreshTokens: RefreshToken[];
 }

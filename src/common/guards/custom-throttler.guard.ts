@@ -1,21 +1,25 @@
-import { Injectable, CanActivate, ExecutionContext } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import { ThrottlerGuard } from '@nestjs/throttler';
+import { ThrottlerGuard, ThrottlerModuleOptions, ThrottlerStorage } from '@nestjs/throttler';
+import { Request } from 'express';
+
+interface RequestWithUser extends Request {
+  user?: { id?: string | number };
+}
 
 @Injectable()
 export class CustomThrottlerGuard extends ThrottlerGuard {
   constructor(
-    options: any,
-    storageService: any,
+    options: ThrottlerModuleOptions,
+    storageService: ThrottlerStorage,
     reflector: Reflector,
   ) {
     super(options, storageService, reflector);
   }
 
-  protected async getTracker(req: Record<string, any>): Promise<string> {
-    // Track by IP and user ID if authenticated
-    const ip = req.ip;
+  protected getTracker(req: RequestWithUser): Promise<string> {
+    const ip = req.ip ?? 'unknown-ip';
     const userId = req.user?.id;
-    return userId ? `${userId}` : `${ip}`;
+    return Promise.resolve(userId !== undefined ? String(userId) : ip);
   }
 }

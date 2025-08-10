@@ -1,8 +1,16 @@
-import { Logger, UseGuards } from "@nestjs/common";
-import { ConnectedSocket, MessageBody, OnGatewayConnection, OnGatewayDisconnect, SubscribeMessage, WebSocketGateway, WebSocketServer } from "@nestjs/websockets";
+import { Logger, UseGuards } from '@nestjs/common';
+import {
+  ConnectedSocket,
+  MessageBody,
+  OnGatewayConnection,
+  OnGatewayDisconnect,
+  SubscribeMessage,
+  WebSocketGateway,
+  WebSocketServer,
+} from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
-import { JwtAuthGuard } from "src/common/guards/jwt-auth.guard";
-import { LocationsService } from "src/modules/locations/services/locations.service";
+import { JwtAuthGuard } from 'src/common/guards/jwt-auth.guard';
+import { LocationsService } from 'src/modules/locations/services/locations.service';
 
 @WebSocketGateway({
   namespace: 'ride-matching',
@@ -17,11 +25,11 @@ export class RideMatchingGateway implements OnGatewayConnection, OnGatewayDiscon
 
   constructor(private readonly locationsService: LocationsService) {}
 
-  async handleConnection(client: Socket) {
+  handleConnection(client: Socket) {
     this.logger.log(`Client connected to ride matching: ${client.id}`);
   }
 
-  async handleDisconnect(client: Socket) {
+  handleDisconnect(client: Socket) {
     const user = this.connectedUsers.get(client.id);
     if (user) {
       this.connectedUsers.delete(client.id);
@@ -31,25 +39,26 @@ export class RideMatchingGateway implements OnGatewayConnection, OnGatewayDiscon
 
   @UseGuards(JwtAuthGuard)
   @SubscribeMessage('user:connect')
-  async handleUserConnect(
+  handleUserConnect(
     @MessageBody() data: { userId: string; userType: 'rider' | 'driver' },
     @ConnectedSocket() client: Socket,
   ) {
     this.connectedUsers.set(client.id, data);
-    client.join(`user:${data.userId}`);
-    
+    void client.join(`user:${data.userId}`);
+
     if (data.userType === 'driver') {
-      client.join('drivers');
+      void client.join('drivers');
     } else {
-      client.join('riders');
+      void client.join('riders');
     }
-    
+
     this.logger.log(`User ${data.userId} (${data.userType}) connected to ride matching`);
   }
 
   @SubscribeMessage('ride:request')
   async handleRideRequest(
-    @MessageBody() data: {
+    @MessageBody()
+    data: {
       riderId: string;
       pickupLat: number;
       pickupLng: number;
@@ -84,17 +93,17 @@ export class RideMatchingGateway implements OnGatewayConnection, OnGatewayDiscon
         success: true,
         driversNotified: nearbyDrivers.length,
       });
-
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
       client.emit('ride:request_sent', {
         success: false,
-        error: error.message,
+        error: errorMessage,
       });
     }
   }
 
   @SubscribeMessage('ride:accept')
-  async handleRideAccept(
+  handleRideAccept(
     @MessageBody() data: { rideId: string; driverId: string },
     @ConnectedSocket() client: Socket,
   ) {
@@ -114,9 +123,9 @@ export class RideMatchingGateway implements OnGatewayConnection, OnGatewayDiscon
   }
 
   @SubscribeMessage('ride:decline')
-  async handleRideDecline(
+  handleRideDecline(
     @MessageBody() data: { rideId: string; driverId: string },
-    @ConnectedSocket() client: Socket,
+    @ConnectedSocket() _client: Socket,
   ) {
     this.server.emit('ride:driver_declined', {
       rideId: data.rideId,
@@ -125,9 +134,9 @@ export class RideMatchingGateway implements OnGatewayConnection, OnGatewayDiscon
   }
 
   @SubscribeMessage('ride:cancel')
-  async handleRideCancel(
+  handleRideCancel(
     @MessageBody() data: { rideId: string; userId: string; reason?: string },
-    @ConnectedSocket() client: Socket,
+    @ConnectedSocket() _client: Socket,
   ) {
     this.server.emit('ride:cancelled', {
       rideId: data.rideId,

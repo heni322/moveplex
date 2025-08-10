@@ -7,13 +7,7 @@ import { DriverProfileController } from './driver-profiles.controller';
 import { DriverProfileService } from './driver-profiles.service';
 
 @Module({
-  imports: [
-    TypeOrmModule.forFeature([
-      DriverProfile,
-      User,
-      Vehicle,
-    ]),
-  ],
+  imports: [TypeOrmModule.forFeature([DriverProfile, User, Vehicle])],
   controllers: [DriverProfileController],
   providers: [DriverProfileService],
   exports: [DriverProfileService],

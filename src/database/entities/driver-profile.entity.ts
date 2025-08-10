@@ -90,11 +90,11 @@ export class DriverProfile {
   createdAt: Date;
 
   // Relations
-  @OneToOne(() => User, (user) => user.driverProfile)
+  @OneToOne(() => User, user => user.driverProfile)
   @JoinColumn({ name: 'user_id' })
   user: User;
 
-  @ManyToOne(() => Vehicle, (vehicle) => vehicle.driverProfiles)
+  @ManyToOne(() => Vehicle, vehicle => vehicle.driverProfiles)
   @JoinColumn({ name: 'vehicle_id' })
   vehicle?: Vehicle;
 }

@@ -9,10 +9,10 @@ import {
   Query,
   ValidationPipe,
 } from '@nestjs/common';
-import { 
-  CreateSurgePricingDto, 
+import {
+  CreateSurgePricingDto,
   UpdateSurgePricingDto,
-  SurgePricingFilterDto 
+  SurgePricingFilterDto,
 } from './dto/surge-pricing.dto';
 import { SurgePricingService } from './surge-pricing.service';
 
@@ -59,13 +59,8 @@ export class SurgePricingController {
   }
 
   @Post('check-location')
-  async checkSurgeAtLocation(
-    @Body() body: { latitude: number; longitude: number },
-  ) {
-    return this.surgePricingService.getSurgeMultiplierAtLocation(
-      body.latitude,
-      body.longitude,
-    );
+  async checkSurgeAtLocation(@Body() body: { latitude: number; longitude: number }) {
+    return this.surgePricingService.getSurgeMultiplierAtLocation(body.latitude, body.longitude);
   }
 
   @Get('active/all')

@@ -7,7 +7,16 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { DriverProfile, DriverStatus } from 'src/database/entities/driver-profile.entity';
 import { Point, Repository } from 'typeorm';
-import { CreateDriverProfileDto, DriverProfileResponseDto, DriverStatsResponseDto, UpdateDriverProfileDto } from './dto/driver-profile.dto';
+import {
+  CreateDriverProfileDto,
+  DriverProfileResponseDto,
+  DriverStatsResponseDto,
+  UpdateDriverProfileDto,
+} from './dto/driver-profile.dto';
+
+interface UpdateDriverProfileData extends Partial<UpdateDriverProfileDto> {
+  currentLocation?: Point;
+}
 
 @Injectable()
 export class DriverProfileService {
@@ -16,9 +25,7 @@ export class DriverProfileService {
     private readonly driverProfileRepository: Repository<DriverProfile>,
   ) {}
 
-  async createDriverProfile(
-    createDto: CreateDriverProfileDto,
-  ): Promise<DriverProfileResponseDto> {
+  async createDriverProfile(createDto: CreateDriverProfileDto): Promise<DriverProfileResponseDto> {
     // Check if driver profile already exists for this user
     const existingProfile = await this.driverProfileRepository.findOne({
       where: { userId: createDto.userId },
@@ -83,7 +90,7 @@ export class DriverProfileService {
     }
 
     // Update location if coordinates are provided
-    let updateData: any = { ...updateDto };
+    const updateData: UpdateDriverProfileData = { ...updateDto };
     if (updateDto.currentLatitude && updateDto.currentLongitude) {
       updateData.currentLocation = this.createPointFromCoordinates(
         updateDto.currentLatitude,
@@ -91,7 +98,7 @@ export class DriverProfileService {
       );
     }
 
-    await this.driverProfileRepository.update(driverId, updateData);
+    await this.driverProfileRepository.update(driverId, updateData as Partial<DriverProfile>);
 
     const updatedProfile = await this.driverProfileRepository.findOne({
       where: { id: driverId },
@@ -135,10 +142,7 @@ export class DriverProfileService {
     return this.mapToResponseDto(updatedProfile);
   }
 
-  async setDriverOnline(
-    driverId: string,
-    isOnline: boolean,
-  ): Promise<DriverProfileResponseDto> {
+  async setDriverOnline(driverId: string, isOnline: boolean): Promise<DriverProfileResponseDto> {
     const driverProfile = await this.driverProfileRepository.findOne({
       where: { userId: driverId },
     });
@@ -190,10 +194,7 @@ export class DriverProfileService {
     };
   }
 
-  async assignVehicle(
-    driverId: string,
-    vehicleId: string,
-  ): Promise<DriverProfileResponseDto> {
+  async assignVehicle(driverId: string, vehicleId: string): Promise<DriverProfileResponseDto> {
     const driverProfile = await this.driverProfileRepository.findOne({
       where: { id: driverId },
     });
@@ -212,11 +213,7 @@ export class DriverProfileService {
     return this.mapToResponseDto(updatedProfile!);
   }
 
-  async updateDriverLocation(
-    driverId: string,
-    latitude: number,
-    longitude: number,
-  ): Promise<void> {
+  async updateDriverLocation(driverId: string, latitude: number, longitude: number): Promise<void> {
     const driverProfile = await this.driverProfileRepository.findOne({
       where: { id: driverId },
     });
@@ -235,8 +232,8 @@ export class DriverProfileService {
   async findNearbyDrivers(
     latitude: number,
     longitude: number,
-    radiusInKm: number = 5,
-    limit: number = 10,
+    radiusInKm = 5,
+    limit = 10,
   ): Promise<DriverProfileResponseDto[]> {
     const query = this.driverProfileRepository
       .createQueryBuilder('driver')
@@ -263,18 +260,15 @@ export class DriverProfileService {
     return drivers.map(driver => this.mapToResponseDto(driver));
   }
 
-  private createPointFromCoordinates(
-    latitude?: number,
-    longitude?: number,
-  ): Point | undefined {
+  private createPointFromCoordinates(latitude?: number, longitude?: number): Point | undefined {
     if (!latitude || !longitude) {
       return undefined;
     }
-    
+
     // Return Point object that TypeORM can handle
     return {
       type: 'Point',
-      coordinates: [longitude, latitude]
+      coordinates: [longitude, latitude],
     } as Point;
   }
 
@@ -292,21 +286,25 @@ export class DriverProfileService {
       totalRides: driverProfile.totalRides,
       status: driverProfile.status,
       createdAt: driverProfile.createdAt,
-      user: driverProfile.user ? {
-        id: driverProfile.user.id,
-        firstName: driverProfile.user.firstName,
-        lastName: driverProfile.user.lastName,
-        email: driverProfile.user.email,
-        phoneNumber: driverProfile.user.phone,
-      } : undefined,
-      vehicle: driverProfile.vehicle ? {
-        id: driverProfile.vehicle.id,
-        make: driverProfile.vehicle.make,
-        model: driverProfile.vehicle.model,
-        year: driverProfile.vehicle.year,
-        licensePlate: driverProfile.vehicle.licensePlate,
-        color: driverProfile.vehicle.color,
-      } : undefined,
+      user: driverProfile.user
+        ? {
+            id: driverProfile.user.id,
+            firstName: driverProfile.user.firstName,
+            lastName: driverProfile.user.lastName,
+            email: driverProfile.user.email,
+            phoneNumber: driverProfile.user.phone,
+          }
+        : undefined,
+      vehicle: driverProfile.vehicle
+        ? {
+            id: driverProfile.vehicle.id,
+            make: driverProfile.vehicle.make,
+            model: driverProfile.vehicle.model,
+            year: driverProfile.vehicle.year,
+            licensePlate: driverProfile.vehicle.licensePlate,
+            color: driverProfile.vehicle.color,
+          }
+        : undefined,
     };
   }
 }

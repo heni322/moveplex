@@ -31,14 +31,11 @@ export class GeocodingService {
     private readonly httpService: HttpService,
     private readonly configService: ConfigService,
   ) {
-    this.nominatimUrl = this.configService.get<string>('NOMINATIM_URL') ?? 'https://nominatim.openstreetmap.org';
+    this.nominatimUrl =
+      this.configService.get<string>('NOMINATIM_URL') ?? 'https://nominatim.openstreetmap.org';
   }
 
-  async geocode(
-    query: string,
-    limit = 5,
-    countryCode?: string,
-  ): Promise<GeocodeResult[]> {
+  async geocode(query: string, limit = 5, countryCode?: string): Promise<GeocodeResult[]> {
     try {
       const params = new URLSearchParams({
         q: query,
@@ -57,7 +54,7 @@ export class GeocodingService {
       );
 
       const data = response.data as NominatimSearchResult[];
-      
+
       return data.map((item: NominatimSearchResult) => ({
         displayName: item.display_name,
         latitude: parseFloat(item.lat),
@@ -72,10 +69,7 @@ export class GeocodingService {
     }
   }
 
-  async reverseGeocode(
-    latitude: number,
-    longitude: number,
-  ): Promise<GeocodeResult | null> {
+  async reverseGeocode(latitude: number, longitude: number): Promise<GeocodeResult | null> {
     try {
       const params = new URLSearchParams({
         lat: latitude.toString(),
@@ -106,7 +100,10 @@ export class GeocodingService {
         importance: parseFloat(data.importance ?? '0'),
       };
     } catch (error) {
-      this.logger.error(`Reverse geocoding error: ${(error as Error).message}`, (error as Error).stack);
+      this.logger.error(
+        `Reverse geocoding error: ${(error as Error).message}`,
+        (error as Error).stack,
+      );
       return null;
     }
   }

@@ -53,7 +53,6 @@ export class UpdateSurgePricingDto {
   @IsString()
   areaName?: string;
 
-
   @IsOptional()
   @IsArray()
   @ArrayMinSize(4)

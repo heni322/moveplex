@@ -15,6 +15,19 @@ import {
 import { Transform, Type } from 'class-transformer';
 import { RideType } from 'src/database/entities/ride.entity';
 
+// Type definitions for GeoJSON and route data
+export interface GeoJSONGeometry {
+  type: string;
+  coordinates: number[][];
+}
+
+export interface RouteInstruction {
+  text: string;
+  distance: number;
+  duration: number;
+  type: string;
+}
+
 export class CreateRideRequestDto {
   @IsNotEmpty()
   @IsUUID()
@@ -72,7 +85,12 @@ export class UpdatePickupLocationDto {
 export class GeocodeRequestDto {
   @IsNotEmpty()
   @IsString()
-  @Transform(({ value }) => value?.trim())
+  @Transform(({ value }: { value: unknown }) => {
+    if (typeof value === 'string') {
+      return value.trim();
+    }
+    return value;
+  })
   query: string;
 
   @IsOptional()
@@ -98,7 +116,7 @@ export class FindRideRequestsDto {
 
   @IsOptional()
   @IsBoolean()
-  @Transform(({ value }) => value === 'true' || value === true)
+  @Transform(({ value }: { value: unknown }) => value === 'true' || value === true)
   isActive?: boolean;
 
   @IsOptional()
@@ -144,7 +162,12 @@ export class FindRideRequestsDto {
   sortBy?: string = 'createdAt';
 
   @IsOptional()
-  @Transform(({ value }) => value?.toUpperCase())
+  @Transform(({ value }: { value: unknown }) => {
+    if (typeof value === 'string') {
+      return value.toUpperCase() as 'ASC' | 'DESC';
+    }
+    return value;
+  })
   sortOrder?: 'ASC' | 'DESC' = 'DESC';
 }
 
@@ -160,14 +183,14 @@ export class RideRequestResponseDto {
   isActive: boolean;
   expiresAt: Date;
   createdAt: Date;
-  
+
   // Enhanced calculated fields
   distanceKm?: number; // Distance from pickup to destination
   estimatedDuration?: number; // Estimated duration in minutes
   estimatedFare?: number; // Estimated fare amount
   surgeMultiplier?: number; // Current surge multiplier
   timeRemaining?: number; // Seconds until expiration
-  
+
   // Optional rider information
   rider?: {
     id: string;
@@ -181,7 +204,7 @@ export class RideRequestResponseDto {
 export class NearbyRideRequestDto extends RideRequestResponseDto {
   distanceFromDriver: number; // Distance in kilometers from driver's location
   estimatedPickupTime: number; // Estimated time in minutes to reach pickup
-  routeToPickup?: any; // Route geometry from driver to pickup (GeoJSON)
+  routeToPickup?: GeoJSONGeometry; // Route geometry from driver to pickup (GeoJSON)
 }
 
 export class RideRequestsResponseDto {
@@ -203,13 +226,13 @@ export class CreateRideRequestResponseDto {
   maxWaitTime: number;
   expiresAt: Date;
   createdAt: Date;
-  
+
   // Enhanced response fields
   estimatedFare?: number;
   estimatedDistance?: number;
   estimatedDuration?: number;
   surgeMultiplier?: number;
-  routeGeometry?: any; // Route geometry from pickup to destination (GeoJSON)
+  routeGeometry?: GeoJSONGeometry; // Route geometry from pickup to destination (GeoJSON)
 }
 
 export class DriverLocationDto {
@@ -228,15 +251,15 @@ export class RideRequestStatsDto {
   totalRequests: number;
   activeRequests: number;
   expiredRequests: number;
-  
+
   // More flexible type that accepts any string keys with number values
   requestsByRideType: { [key: string]: number };
-  
+
   averageWaitTime: number;
   averageDistance?: number; // Average trip distance in km
   averageFare?: number; // Average fare amount
   activeSurgeAreas?: number; // Number of active surge areas
-  
+
   peakHours: {
     hour: number;
     requestCount: number;
@@ -285,13 +308,8 @@ export class FareEstimateDto {
 export class RouteInfoDto {
   distance: number; // Distance in meters
   duration: number; // Duration in seconds
-  geometry: any; // GeoJSON geometry
-  instructions?: {
-    text: string;
-    distance: number;
-    duration: number;
-    type: string;
-  }[];
+  geometry: GeoJSONGeometry; // GeoJSON geometry
+  instructions?: RouteInstruction[];
 }
 
 // Request DTOs for new endpoints
@@ -317,5 +335,5 @@ export class CancelRideRequestDto {
 export class RideRequestActionResponseDto {
   message: string;
   success: boolean;
-  data?: any;
+  data?: unknown;
 }

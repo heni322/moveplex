@@ -10,8 +10,8 @@ export class HealthController {
 
   @Get()
   @ApiOperation({ summary: 'Complete health check' })
-  @ApiResponse({ 
-    status: 200, 
+  @ApiResponse({
+    status: 200,
     description: 'Application is healthy',
     schema: {
       example: {
@@ -23,26 +23,27 @@ export class HealthController {
         services: {
           auth: 'active',
           rides: 'active',
-          payments: 'active'
-        }
-      }
-    }
+          payments: 'active',
+        },
+      },
+    },
   })
   @ApiResponse({ status: 503, description: 'Application is unhealthy' })
   async healthCheck(@Res() res: Response) {
     try {
       const healthStatus = await this.healthService.getHealthStatus();
-      
+
       if (healthStatus.status === 'ok') {
         return res.status(HttpStatus.OK).json(healthStatus);
       } else {
         return res.status(HttpStatus.SERVICE_UNAVAILABLE).json(healthStatus);
       }
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       return res.status(HttpStatus.SERVICE_UNAVAILABLE).json({
         status: 'error',
         timestamp: new Date().toISOString(),
-        error: error.message,
+        error: errorMessage,
         uptime: process.uptime(),
       });
     }
@@ -50,15 +51,15 @@ export class HealthController {
 
   @Get('simple')
   @ApiOperation({ summary: 'Simple health check' })
-  @ApiResponse({ 
-    status: 200, 
+  @ApiResponse({
+    status: 200,
     description: 'Simple health status',
     schema: {
       example: {
         status: 'ok',
-        timestamp: '2024-01-15T10:30:00.000Z'
-      }
-    }
+        timestamp: '2024-01-15T10:30:00.000Z',
+      },
+    },
   })
   simpleHealthCheck() {
     return {
@@ -74,16 +75,17 @@ export class HealthController {
   async readinessCheck(@Res() res: Response) {
     try {
       const isDatabaseHealthy = await this.healthService.checkDatabase();
-      
+
       if (isDatabaseHealthy) {
         return res.status(HttpStatus.OK).json({ status: 'ready' });
       } else {
         return res.status(HttpStatus.SERVICE_UNAVAILABLE).json({ status: 'not ready' });
       }
     } catch (error) {
-      return res.status(HttpStatus.SERVICE_UNAVAILABLE).json({ 
-        status: 'not ready', 
-        error: error.message 
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      return res.status(HttpStatus.SERVICE_UNAVAILABLE).json({
+        status: 'not ready',
+        error: errorMessage,
       });
     }
   }

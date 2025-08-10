@@ -3,25 +3,78 @@ import {
   NotFoundException,
   BadRequestException,
   InternalServerErrorException,
+  Logger,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, MoreThan, Between } from 'typeorm';
+import { Repository, MoreThan } from 'typeorm';
 
 import { RideRequest } from 'src/database/entities/ride-request.entity';
 import { RideType } from 'src/database/entities/ride.entity';
-import { 
-  CreateRideRequestDto, 
-  CreateRideRequestResponseDto, 
-  FindRideRequestsDto, 
-  NearbyRideRequestDto, 
-  RideRequestResponseDto, 
-  RideRequestsResponseDto, 
-  RideRequestStatsDto 
+import {
+  CreateRideRequestDto,
+  CreateRideRequestResponseDto,
+  FindRideRequestsDto,
+  GeoJSONGeometry,
+  NearbyRideRequestDto,
+  RideRequestResponseDto,
+  RideRequestsResponseDto,
+  RideRequestStatsDto,
 } from './dto/ride-requests.dto';
 import { LocationsService } from '../locations/services/locations.service';
 
+interface QueryResult {
+  id: string;
+  rider_id: string;
+  pickup_latitude: string;
+  pickup_longitude: string;
+  destination_latitude: string;
+  destination_longitude: string;
+  ride_type: string;
+  max_wait_time: number;
+  expires_at: Date;
+  created_at: Date;
+  estimated_fare: string;
+  estimated_distance: string;
+  estimated_duration: string;
+  surge_multiplier: string;
+  is_active?: boolean;
+}
+
+interface NearbyQueryResult extends QueryResult {
+  distance_meters: number;
+}
+
+interface DriverLocationResult {
+  latitude: number;
+  longitude: number;
+}
+
+interface RideTypeStatsResult {
+  rideType: string;
+  count: string;
+}
+
+interface AvgResult {
+  avg: string;
+}
+
+interface PeakHoursResult {
+  hour: number;
+  request_count: string;
+}
+
+// Fixed GeocodeResult interface to match DTO expectations
+interface GeocodeResult {
+  address: string;
+  latitude: number;
+  longitude: number;
+  confidence: number;
+}
+
 @Injectable()
 export class RideRequestsService {
+  private readonly logger = new Logger(RideRequestsService.name);
+
   constructor(
     @InjectRepository(RideRequest)
     private readonly rideRequestRepository: Repository<RideRequest>,
@@ -45,29 +98,34 @@ export class RideRequestsService {
 
       // Calculate expiration time
       const expiresAt = new Date();
-      expiresAt.setMinutes(expiresAt.getMinutes() + (createDto.expiresInMinutes || 15));
+      expiresAt.setMinutes(expiresAt.getMinutes() + (createDto.expiresInMinutes ?? 15));
 
       // Use LocationsService for enhanced calculations
-      const pickupCoords = { 
-        latitude: createDto.pickupLatitude, 
-        longitude: createDto.pickupLongitude 
+      const pickupCoords = {
+        latitude: createDto.pickupLatitude,
+        longitude: createDto.pickupLongitude,
       };
-      const destinationCoords = { 
-        latitude: createDto.destinationLatitude, 
-        longitude: createDto.destinationLongitude 
+      const destinationCoords = {
+        latitude: createDto.destinationLatitude,
+        longitude: createDto.destinationLongitude,
       };
 
       // Calculate route and fare estimate
       const [routeResult, fareEstimate] = await Promise.all([
         this.locationsService.calculateRoute(pickupCoords, destinationCoords),
-        this.locationsService.calculateFareEstimate(pickupCoords, destinationCoords, createDto.rideType)
+        this.locationsService.calculateFareEstimate(
+          pickupCoords,
+          destinationCoords,
+          createDto.rideType,
+        ),
       ]);
 
       // Use raw SQL to insert with PostGIS functions
       const queryRunner = this.rideRequestRepository.manager.connection.createQueryRunner();
-      
+
       try {
-        const result = await queryRunner.query(`
+        const result = await queryRunner.query(
+          `
           INSERT INTO ride_requests (
             rider_id, pickup_latitude, pickup_longitude, pickup_location,
             destination_latitude, destination_longitude, destination_location,
@@ -83,27 +141,37 @@ export class RideRequestsService {
                   destination_latitude, destination_longitude, ride_type, 
                   max_wait_time, is_active, expires_at, created_at,
                   estimated_distance, estimated_duration, estimated_fare, surge_multiplier
-        `, [
-          createDto.riderId,
-          createDto.pickupLatitude,
-          createDto.pickupLongitude,
-          createDto.pickupLongitude,  // ST_Point expects (longitude, latitude)
-          createDto.pickupLatitude,
-          createDto.destinationLatitude,
-          createDto.destinationLongitude,
-          createDto.destinationLongitude,  // ST_Point expects (longitude, latitude)
-          createDto.destinationLatitude,
-          createDto.rideType,
-          createDto.maxWaitTime || 300,
-          true,
-          expiresAt,
-          routeResult.distance / 1000, // Convert to km
-          routeResult.duration / 60,   // Convert to minutes
-          fareEstimate.estimatedFare,
-          fareEstimate.surgeMultiplier
-        ]);
+        `,
+          [
+            createDto.riderId,
+            createDto.pickupLatitude,
+            createDto.pickupLongitude,
+            createDto.pickupLongitude, // ST_Point expects (longitude, latitude)
+            createDto.pickupLatitude,
+            createDto.destinationLatitude,
+            createDto.destinationLongitude,
+            createDto.destinationLongitude, // ST_Point expects (longitude, latitude)
+            createDto.destinationLatitude,
+            createDto.rideType,
+            createDto.maxWaitTime ?? 300,
+            true,
+            expiresAt,
+            routeResult.distance / 1000, // Convert to km
+            routeResult.duration / 60, // Convert to minutes
+            fareEstimate.estimatedFare,
+            fareEstimate.surgeMultiplier,
+          ],
+        );
 
-        const savedRequest = result[0];
+        // Type assertion after validating the result structure
+        const typedResult = result as QueryResult[];
+        const savedRequest = typedResult[0];
+
+        // Convert geometry to proper GeoJSON format
+        const routeGeometry: GeoJSONGeometry = {
+          type: 'LineString',
+          coordinates: routeResult.geometry,
+        };
 
         return {
           id: savedRequest.id,
@@ -112,7 +180,7 @@ export class RideRequestsService {
           pickupLongitude: parseFloat(savedRequest.pickup_longitude),
           destinationLatitude: parseFloat(savedRequest.destination_latitude),
           destinationLongitude: parseFloat(savedRequest.destination_longitude),
-          rideType: savedRequest.ride_type,
+          rideType: savedRequest.ride_type as RideType,
           maxWaitTime: savedRequest.max_wait_time,
           expiresAt: savedRequest.expires_at,
           createdAt: savedRequest.created_at,
@@ -120,7 +188,7 @@ export class RideRequestsService {
           estimatedDistance: parseFloat(savedRequest.estimated_distance),
           estimatedDuration: parseFloat(savedRequest.estimated_duration),
           surgeMultiplier: parseFloat(savedRequest.surge_multiplier),
-          routeGeometry: routeResult.geometry,
+          routeGeometry: routeGeometry,
         };
       } finally {
         await queryRunner.release();
@@ -129,7 +197,7 @@ export class RideRequestsService {
       if (error instanceof BadRequestException) {
         throw error;
       }
-      console.error('Error creating ride request:', error);
+      this.logger.error('Error creating ride request:', error);
       throw new InternalServerErrorException('Failed to create ride request');
     }
   }
@@ -175,7 +243,7 @@ export class RideRequestsService {
 
     if (isActive !== undefined) {
       queryBuilder.andWhere('request.isActive = :isActive', { isActive });
-      
+
       if (isActive) {
         // Only show non-expired active requests
         queryBuilder.andWhere('request.expiresAt > :now', { now: new Date() });
@@ -204,7 +272,7 @@ export class RideRequestsService {
       const point = `POINT(${nearLongitude} ${nearLatitude})`;
       queryBuilder.addSelect(
         `ST_Distance(request.pickup_location::geography, ST_GeogFromText('${point}'))`,
-        'distance'
+        'distance',
       );
       queryBuilder.orderBy('distance', sortOrder);
     } else {
@@ -218,7 +286,7 @@ export class RideRequestsService {
     const [requests, total] = await queryBuilder.getManyAndCount();
 
     return {
-      requests: requests.map((request) => this.mapToResponseDto(request)),
+      requests: requests.map(request => this.mapToResponseDto(request)),
       total,
       page,
       limit,
@@ -244,15 +312,12 @@ export class RideRequestsService {
       await this.rideRequestRepository.save(request);
 
       return { message: 'Ride request cancelled successfully' };
-    } catch (error) {
+    } catch {
       throw new InternalServerErrorException('Failed to cancel ride request');
     }
   }
 
-  async getNearbyRequests(
-    driverId: string,
-    radiusKm: number = 5,
-  ): Promise<NearbyRideRequestDto[]> {
+  async getNearbyRequests(driverId: string, radiusKm: number = 5): Promise<NearbyRideRequestDto[]> {
     // Get driver's current location using LocationsService
     const driverLocation = await this.getDriverLocation(driverId);
 
@@ -277,39 +342,62 @@ export class RideRequestsService {
 
     // Enhanced with LocationsService calculations
     const enhancedResults = await Promise.all(
-      results.map(async (result: any) => {
-        const pickupCoords = { 
-          latitude: result.pickup_latitude, 
-          longitude: result.pickup_longitude 
+      results.map(async (result: NearbyQueryResult) => {
+        const pickupCoords = {
+          latitude: Number(result.pickup_latitude),
+          longitude: Number(result.pickup_longitude),
         };
-        
+
         // Calculate accurate route from driver to pickup
         const routeToPickup = await this.locationsService.calculateRoute(
           driverLocation,
-          pickupCoords
+          pickupCoords,
         );
 
+        const baseRequest = this.mapToResponseDto(result);
+
+        // Convert geometry to proper GeoJSON format
+        const routeGeometry: GeoJSONGeometry = {
+          type: 'LineString',
+          coordinates: routeToPickup.geometry,
+        };
+
         return {
-          ...this.mapToResponseDto(result),
+          ...baseRequest,
           distanceFromDriver: Math.round((result.distance_meters / 1000) * 100) / 100,
           estimatedPickupTime: Math.ceil(routeToPickup.duration / 60), // minutes
-          routeToPickup: routeToPickup.geometry,
+          routeToPickup: routeGeometry, // Now properly typed as GeoJSONGeometry
         };
-      })
+      }),
     );
 
     return enhancedResults;
   }
 
-  async geocodePickupLocation(requestId: string, query: string): Promise<any> {
+  async geocodePickupLocation(
+    requestId: string,
+    query: string,
+  ): Promise<{
+    requestId: string;
+    geocodeResults: GeocodeResult[];
+    currentPickup: { latitude: number; longitude: number };
+  }> {
     const request = await this.getRideRequest(requestId);
-    
+
     // Use LocationsService for geocoding
     const results = await this.locationsService.geocodeAddress(query, 5);
-    
+
+    // Map the LocationsService GeocodeResult to your DTO GeocodeResult
+    const mappedResults: GeocodeResult[] = results.map(result => ({
+      address: result.displayName, // Map displayName to address
+      latitude: result.latitude,
+      longitude: result.longitude,
+      confidence: result.importance, // Map importance to confidence
+    }));
+
     return {
       requestId,
-      geocodeResults: results,
+      geocodeResults: mappedResults,
       currentPickup: {
         latitude: request.pickupLatitude,
         longitude: request.pickupLongitude,
@@ -318,9 +406,9 @@ export class RideRequestsService {
   }
 
   async updatePickupLocation(
-    requestId: string, 
-    newLatitude: number, 
-    newLongitude: number
+    requestId: string,
+    newLatitude: number,
+    newLongitude: number,
   ): Promise<RideRequestResponseDto> {
     const request = await this.rideRequestRepository.findOne({
       where: { id: requestId },
@@ -336,21 +424,26 @@ export class RideRequestsService {
 
     // Recalculate fare with new pickup location
     const newPickupCoords = { latitude: newLatitude, longitude: newLongitude };
-    const destinationCoords = { 
-      latitude: request.destinationLatitude, 
-      longitude: request.destinationLongitude 
+    const destinationCoords = {
+      latitude: request.destinationLatitude,
+      longitude: request.destinationLongitude,
     };
 
     const [routeResult, fareEstimate] = await Promise.all([
       this.locationsService.calculateRoute(newPickupCoords, destinationCoords),
-      this.locationsService.calculateFareEstimate(newPickupCoords, destinationCoords, request.rideType)
+      this.locationsService.calculateFareEstimate(
+        newPickupCoords,
+        destinationCoords,
+        request.rideType,
+      ),
     ]);
 
     // Update with raw SQL to handle PostGIS
     const queryRunner = this.rideRequestRepository.manager.connection.createQueryRunner();
-    
+
     try {
-      await queryRunner.query(`
+      await queryRunner.query(
+        `
         UPDATE ride_requests 
         SET pickup_latitude = $1, 
             pickup_longitude = $2,
@@ -360,17 +453,19 @@ export class RideRequestsService {
             estimated_fare = $7,
             surge_multiplier = $8
         WHERE id = $9
-      `, [
-        newLatitude,
-        newLongitude,
-        newLongitude, // ST_Point expects (longitude, latitude)
-        newLatitude,
-        routeResult.distance / 1000,
-        routeResult.duration / 60,
-        fareEstimate.estimatedFare,
-        fareEstimate.surgeMultiplier,
-        requestId
-      ]);
+      `,
+        [
+          newLatitude,
+          newLongitude,
+          newLongitude, // ST_Point expects (longitude, latitude)
+          newLatitude,
+          routeResult.distance / 1000,
+          routeResult.duration / 60,
+          fareEstimate.estimatedFare,
+          fareEstimate.surgeMultiplier,
+          requestId,
+        ],
+      );
 
       // Fetch updated request
       const updatedRequest = await this.getRideRequest(requestId);
@@ -392,7 +487,7 @@ export class RideRequestsService {
       },
     );
 
-    return { deactivated: result.affected || 0 };
+    return { deactivated: result.affected ?? 0 };
   }
 
   async getRideRequestStats(riderId?: string): Promise<RideRequestStatsDto> {
@@ -443,31 +538,79 @@ export class RideRequestsService {
   }
 
   // Helper methods
-  private mapToResponseDto(request: any): RideRequestResponseDto {
+  private mapToResponseDto(
+    request: RideRequest | QueryResult | NearbyQueryResult,
+  ): RideRequestResponseDto {
     const now = new Date();
-    const timeRemaining = Math.max(0, Math.floor((new Date(request.expiresAt).getTime() - now.getTime()) / 1000));
-    
+
+    // Fixed: Handle both entity and query result property names
+    const expiresAt = new Date(
+      (request as RideRequest).expiresAt ?? (request as QueryResult).expires_at,
+    );
+
+    const timeRemaining = Math.max(0, Math.floor((expiresAt.getTime() - now.getTime()) / 1000));
+
+    // Extract properties with proper type handling
+    const id = (request as RideRequest).id ?? (request as QueryResult).id;
+    const riderId = (request as RideRequest).riderId ?? (request as QueryResult).rider_id;
+    const pickupLatitude =
+      (request as RideRequest).pickupLatitude ?? (request as QueryResult).pickup_latitude;
+    const pickupLongitude =
+      (request as RideRequest).pickupLongitude ?? (request as QueryResult).pickup_longitude;
+    const destinationLatitude =
+      (request as RideRequest).destinationLatitude ?? (request as QueryResult).destination_latitude;
+    const destinationLongitude =
+      (request as RideRequest).destinationLongitude ??
+      (request as QueryResult).destination_longitude;
+    const rideType = (request as RideRequest).rideType ?? (request as QueryResult).ride_type;
+    const maxWaitTime =
+      (request as RideRequest).maxWaitTime ?? (request as QueryResult).max_wait_time;
+    const isActive =
+      (request as RideRequest).isActive !== undefined
+        ? (request as RideRequest).isActive
+        : ((request as QueryResult).is_active ?? true);
+    const createdAt = new Date(
+      (request as RideRequest).createdAt ?? (request as QueryResult).created_at,
+    );
+    const distanceKm =
+      Number(
+        (request as RideRequest).estimatedDistance ?? (request as QueryResult).estimated_distance,
+      ) || 0;
+    const estimatedDuration =
+      Number(
+        (request as RideRequest).estimatedDuration ?? (request as QueryResult).estimated_duration,
+      ) || 0;
+    const estimatedFare =
+      Number((request as RideRequest).estimatedFare ?? (request as QueryResult).estimated_fare) ||
+      0;
+    const surgeMultiplier =
+      Number(
+        (request as RideRequest).surgeMultiplier ?? (request as QueryResult).surge_multiplier,
+      ) || 1;
+
     return {
-      id: request.id,
-      riderId: request.riderId || request.rider_id,
-      pickupLatitude: Number(request.pickupLatitude || request.pickup_latitude),
-      pickupLongitude: Number(request.pickupLongitude || request.pickup_longitude),
-      destinationLatitude: Number(request.destinationLatitude || request.destination_latitude),
-      destinationLongitude: Number(request.destinationLongitude || request.destination_longitude),
-      rideType: request.rideType || request.ride_type,
-      maxWaitTime: request.maxWaitTime || request.max_wait_time,
-      isActive: request.isActive !== undefined ? request.isActive : request.is_active,
-      expiresAt: new Date(request.expiresAt || request.expires_at),
-      createdAt: new Date(request.createdAt || request.created_at),
-      distanceKm: Number(request.estimatedDistance || request.estimated_distance) || 0,
-      estimatedDuration: Number(request.estimatedDuration || request.estimated_duration) || 0,
-      estimatedFare: Number(request.estimatedFare || request.estimated_fare) || 0,
-      surgeMultiplier: Number(request.surgeMultiplier || request.surge_multiplier) || 1,
+      id,
+      riderId,
+      pickupLatitude: Number(pickupLatitude),
+      pickupLongitude: Number(pickupLongitude),
+      destinationLatitude: Number(destinationLatitude),
+      destinationLongitude: Number(destinationLongitude),
+      rideType,
+      maxWaitTime,
+      isActive,
+      expiresAt,
+      createdAt,
+      distanceKm,
+      estimatedDuration,
+      estimatedFare,
+      surgeMultiplier,
       timeRemaining,
     };
   }
 
-  private async getDriverLocation(driverId: string): Promise<{ latitude: number; longitude: number } | null> {
+  private async getDriverLocation(
+    driverId: string,
+  ): Promise<{ latitude: number; longitude: number } | null> {
     // This method should integrate with your driver location tracking
     // For now, we'll assume it's handled by LocationsService or another service
     // You might want to create a separate DriversService that uses LocationsService
@@ -481,31 +624,31 @@ export class RideRequestsService {
         ORDER BY updated_at DESC 
         LIMIT 1
       `;
-      
+
       const result = await this.rideRequestRepository.query(query, [driverId]);
-      
+
       if (result.length > 0) {
         return {
           latitude: Number(result[0].latitude),
           longitude: Number(result[0].longitude),
         };
       }
-      
+
       return null;
     } catch (error) {
-      console.error('Error fetching driver location:', error);
+      this.logger.error('Error fetching driver location:', error);
       return null;
     }
   }
 
   private async getRideTypeStats(riderId?: string): Promise<Record<RideType, number>> {
     const baseQuery = this.rideRequestRepository.createQueryBuilder('request');
-    
+
     if (riderId) {
       baseQuery.where('request.riderId = :riderId', { riderId });
     }
 
-    const results = await baseQuery
+    const results: RideTypeStatsResult[] = await baseQuery
       .select('request.rideType', 'rideType')
       .addSelect('COUNT(*)', 'count')
       .groupBy('request.rideType')
@@ -536,8 +679,8 @@ export class RideRequestsService {
       query.where('request.riderId = :riderId', { riderId });
     }
 
-    const result = await query.getRawOne();
-    return Math.round(Number(result.avg) || 0);
+    const result: AvgResult | undefined = await query.getRawOne();
+    return Math.round(Number(result?.avg) || 0);
   }
 
   private async getAverageDistance(riderId?: string): Promise<number> {
@@ -549,8 +692,8 @@ export class RideRequestsService {
       query.where('request.riderId = :riderId', { riderId });
     }
 
-    const result = await query.getRawOne();
-    return Math.round((Number(result.avg) || 0) * 100) / 100;
+    const result: AvgResult | undefined = await query.getRawOne();
+    return Math.round((Number(result?.avg) || 0) * 100) / 100;
   }
 
   private async getAverageFare(riderId?: string): Promise<number> {
@@ -562,8 +705,8 @@ export class RideRequestsService {
       query.where('request.riderId = :riderId', { riderId });
     }
 
-    const result = await query.getRawOne();
-    return Math.round((Number(result.avg) || 0) * 100) / 100;
+    const result: AvgResult | undefined = await query.getRawOne();
+    return Math.round((Number(result?.avg) || 0) * 100) / 100;
   }
 
   private async getPeakHours(riderId?: string): Promise<{ hour: number; requestCount: number }[]> {
@@ -576,13 +719,21 @@ export class RideRequestsService {
       LIMIT 5
     `;
 
-    const results = riderId 
+    const results = riderId
       ? await this.rideRequestRepository.query(query, [riderId])
       : await this.rideRequestRepository.query(query);
 
-    return results.map((result: any) => ({
+    return results.map((result: PeakHoursResult) => ({
       hour: Number(result.hour),
       requestCount: Number(result.request_count),
     }));
+  }
+
+  // Utility method to convert coordinates to GeoJSON
+  private convertToGeoJSON(coordinates: number[][]): GeoJSONGeometry {
+    return {
+      type: 'LineString',
+      coordinates: coordinates,
+    };
   }
 }

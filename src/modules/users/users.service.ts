@@ -30,27 +30,24 @@ export class UsersService {
   async createUser(createDto: CreateUserDto): Promise<User> {
     // Check if user already exists with email or phone
     const existingUser = await this.userRepository.findOne({
-        where: [
-        { email: createDto.email },
-        { phone: createDto.phone },
-        ],
+      where: [{ email: createDto.email }, { phone: createDto.phone }],
     });
 
     if (existingUser) {
-        if (existingUser.email === createDto.email) {
+      if (existingUser.email === createDto.email) {
         throw new ConflictException('User with this email already exists');
-        }
-        if (existingUser.phone === createDto.phone) {
+      }
+      if (existingUser.phone === createDto.phone) {
         throw new ConflictException('User with this phone number already exists');
-        }
+      }
     }
 
     try {
-        // Hash password
-        const saltRounds = 12;
-        const hashedPassword = await bcrypt.hash(createDto.password, saltRounds);
+      // Hash password
+      const saltRounds = 12;
+      const hashedPassword = await bcrypt.hash(createDto.password, saltRounds);
 
-        const user = this.userRepository.create({
+      const user = this.userRepository.create({
         email: createDto.email,
         phone: createDto.phone,
         passwordHash: hashedPassword,
@@ -60,17 +57,17 @@ export class UsersService {
         userType: createDto.userType,
         isVerified: createDto.isVerified ?? false,
         isActive: createDto.isActive ?? true,
-        });
+      });
 
-        const savedUser = await this.userRepository.save(user);
-        this.logger.log(`Created user: ${savedUser.id}`);
+      const savedUser = await this.userRepository.save(user);
+      this.logger.log(`Created user: ${savedUser.id}`);
 
-        // Remove password hash from response
-        const { passwordHash, ...userResponse } = savedUser;
-        return userResponse as User;
+      // Remove password hash from response
+      const { passwordHash, ...userResponse } = savedUser;
+      return userResponse as User;
     } catch (error) {
-        this.logger.error('Failed to create user', error.stack);
-        throw new BadRequestException('Failed to create user');
+      this.logger.error('Failed to create user', error.stack);
+      throw new BadRequestException('Failed to create user');
     }
   }
 
@@ -282,13 +279,7 @@ export class UsersService {
   async getUserProfile(userId: string): Promise<UserProfileResponseDto> {
     const user = await this.userRepository.findOne({
       where: { id: userId },
-      relations: [
-        'driverProfile',
-        'ridesAsRider',
-        'ridesAsDriver',
-        'payments',
-        'ratingsReceived',
-      ],
+      relations: ['driverProfile', 'ridesAsRider', 'ridesAsDriver', 'payments', 'ratingsReceived'],
       select: [
         'id',
         'email',
@@ -313,10 +304,10 @@ export class UsersService {
       totalRidesAsRider: user.ridesAsRider?.length || 0,
       totalRidesAsDriver: user.ridesAsDriver?.length || 0,
       averageRatingAsRider: this.calculateAverageRating(
-        user.ratingsReceived?.filter(r => r.ratedBy.userType === 'rider') || []
+        user.ratingsReceived?.filter(r => r.ratedBy.userType === 'rider') || [],
       ),
       averageRatingAsDriver: this.calculateAverageRating(
-        user.ratingsReceived?.filter(r => r.ratedUser.userType === 'driver') || []
+        user.ratingsReceived?.filter(r => r.ratedUser.userType === 'driver') || [],
       ),
       totalPayments: user.payments?.length || 0,
     };
@@ -373,7 +364,7 @@ export class UsersService {
       select: ['id', 'email', 'passwordHash', 'isActive', 'isVerified'],
     });
 
-    if (!user || !user.isActive) {
+    if (!user?.isActive) {
       return null;
     }
 
@@ -405,7 +396,7 @@ export class UsersService {
   // Helper methods
   private calculateAverageRating(ratings: any[]): number {
     if (!ratings || ratings.length === 0) return 0;
-    
+
     const sum = ratings.reduce((acc, rating) => acc + rating.rating, 0);
     return Math.round((sum / ratings.length) * 10) / 10; // Round to 1 decimal
   }

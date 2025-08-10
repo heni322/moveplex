@@ -1,9 +1,16 @@
-import { Logger, UseGuards } from "@nestjs/common";
-import { ConnectedSocket, MessageBody, OnGatewayConnection, OnGatewayDisconnect, SubscribeMessage, WebSocketGateway, WebSocketServer } from "@nestjs/websockets";
-import { JwtAuthGuard } from "src/common/guards/jwt-auth.guard";
-import { LocationsService } from "src/modules/locations/services/locations.service";
+import { Logger, UseGuards } from '@nestjs/common';
+import {
+  ConnectedSocket,
+  MessageBody,
+  OnGatewayConnection,
+  OnGatewayDisconnect,
+  SubscribeMessage,
+  WebSocketGateway,
+  WebSocketServer,
+} from '@nestjs/websockets';
+import { JwtAuthGuard } from 'src/common/guards/jwt-auth.guard';
+import { LocationsService } from 'src/modules/locations/services/locations.service';
 import { Server, Socket } from 'socket.io';
-
 
 @WebSocketGateway({
   namespace: 'ride-progress',
@@ -38,7 +45,8 @@ export class RideProgressGateway implements OnGatewayConnection, OnGatewayDiscon
 
   @SubscribeMessage('ride:status_update')
   async handleRideStatusUpdate(
-    @MessageBody() data: {
+    @MessageBody()
+    data: {
       rideId: string;
       status: 'accepted' | 'driver_arriving' | 'in_progress' | 'completed';
       location?: { lat: number; lng: number };
@@ -57,7 +65,8 @@ export class RideProgressGateway implements OnGatewayConnection, OnGatewayDiscon
 
   @SubscribeMessage('ride:location_update')
   async handleRideLocationUpdate(
-    @MessageBody() data: {
+    @MessageBody()
+    data: {
       rideId: string;
       driverId: string;
       latitude: number;
@@ -87,7 +96,6 @@ export class RideProgressGateway implements OnGatewayConnection, OnGatewayDiscon
         heading: data.heading,
         timestamp: new Date(),
       });
-
     } catch (error) {
       this.logger.error(`Error updating ride location: ${error.message}`);
     }

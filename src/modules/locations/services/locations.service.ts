@@ -2,8 +2,20 @@ import { Injectable, Logger } from '@nestjs/common';
 import { PostgisService } from './postgis.service';
 import { GeocodingService } from './geocoding.service';
 import { RoutingService } from './routing.service';
-import { Coordinates, GeocodeResult, NearbyDriver, RouteResult, SurgeArea } from '../interfaces/location.interfaces';
+import {
+  Coordinates,
+  GeocodeResult,
+  NearbyDriver,
+  RouteResult,
+  SurgeArea,
+} from '../interfaces/location.interfaces';
 
+// Define the fare rate structure
+interface FareRates {
+  base: number;
+  perKm: number;
+  perMinute: number;
+}
 
 @Injectable()
 export class LocationsService {
@@ -23,10 +35,7 @@ export class LocationsService {
     return this.postgisService.findNearbyDrivers(coordinates, radiusKm, limit);
   }
 
-  async updateDriverLocation(
-    driverId: string,
-    coordinates: Coordinates,
-  ): Promise<void> {
+  async updateDriverLocation(driverId: string, coordinates: Coordinates): Promise<void> {
     await this.postgisService.updateDriverLocation(driverId, coordinates);
     this.logger.debug(`Updated location for driver ${driverId}`);
   }
@@ -39,13 +48,8 @@ export class LocationsService {
     return this.geocodingService.geocode(query, limit, countryCode);
   }
 
-  async reverseGeocodeLocation(
-    coordinates: Coordinates,
-  ): Promise<GeocodeResult | null> {
-    return this.geocodingService.reverseGeocode(
-      coordinates.latitude,
-      coordinates.longitude,
-    );
+  async reverseGeocodeLocation(coordinates: Coordinates): Promise<GeocodeResult | null> {
+    return this.geocodingService.reverseGeocode(coordinates.latitude, coordinates.longitude);
   }
 
   async calculateRoute(
@@ -69,25 +73,26 @@ export class LocationsService {
   }> {
     // Get route information
     const route = await this.routingService.getRoute(start, end);
-    
+
     // Get surge multiplier for pickup location
     const surgeMultiplier = await this.postgisService.getSurgeMultiplier(start);
-    
+
     // Base fare calculation (customize based on your business logic)
-    const baseFareRates = {
+    const baseFareRates: Record<string, FareRates> = {
       economy: { base: 2.5, perKm: 1.2, perMinute: 0.25 },
       premium: { base: 3.5, perKm: 1.8, perMinute: 0.35 },
       luxury: { base: 5.0, perKm: 2.5, perMinute: 0.5 },
       suv: { base: 4.0, perKm: 2.0, perMinute: 0.4 },
     };
-    
-    const rates = baseFareRates[vehicleType] || baseFareRates.economy;
+
+    const rates: FareRates = baseFareRates[vehicleType] ?? baseFareRates.economy;
     const distanceKm = route.distance / 1000;
     const durationMinutes = route.duration / 60;
-    
-    const basefare = rates.base + (distanceKm * rates.perKm) + (durationMinutes * rates.perMinute);
-    const estimatedFare = basefare * surgeMultiplier;
-    
+
+    const basefare: number =
+      rates.base + distanceKm * rates.perKm + durationMinutes * rates.perMinute;
+    const estimatedFare: number = basefare * surgeMultiplier;
+
     return {
       basefare,
       surgeMultiplier,
@@ -103,22 +108,14 @@ export class LocationsService {
     speed?: number,
     heading?: number,
   ): Promise<void> {
-    await this.postgisService.addRideTrackingPoint(
-      rideId,
-      coordinates,
-      speed,
-      heading,
-    );
+    await this.postgisService.addRideTrackingPoint(rideId, coordinates, speed, heading);
   }
 
   async getActiveSurgeAreas(): Promise<SurgeArea[]> {
     return this.postgisService.getActiveSurgeAreas();
   }
 
-  async calculateDistance(
-    point1: Coordinates,
-    point2: Coordinates,
-  ): Promise<number> {
+  async calculateDistance(point1: Coordinates, point2: Coordinates): Promise<number> {
     return this.postgisService.calculateDistance(point1, point2);
   }
 }

@@ -1,32 +1,35 @@
-import { Injectable } from '@nestjs/common';
-import { InjectConnection } from '@nestjs/typeorm';
-import { Connection } from 'typeorm';
+import { Injectable, Logger } from '@nestjs/common';
+import { InjectDataSource } from '@nestjs/typeorm';
+import { DataSource } from 'typeorm';
 
 @Injectable()
 export class HealthService {
+  private readonly logger = new Logger(HealthService.name);
+
   constructor(
-    @InjectConnection()
-    private readonly connection: Connection,
+    @InjectDataSource()
+    private readonly dataSource: DataSource,
   ) {}
 
   async checkDatabase(): Promise<boolean> {
     try {
-      await this.connection.query('SELECT 1');
+      await this.dataSource.query('SELECT 1');
       return true;
     } catch (error) {
-      console.error('Database health check failed:', error.message);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown database error';
+      this.logger.error('Database health check failed:', errorMessage);
       return false;
     }
   }
 
   async getHealthStatus() {
     const isDatabaseHealthy = await this.checkDatabase();
-    
+
     return {
       status: isDatabaseHealthy ? 'ok' : 'error',
       timestamp: new Date().toISOString(),
       uptime: process.uptime(),
-      environment: process.env.NODE_ENV || 'development',
+      environment: process.env.NODE_ENV ?? 'development',
       version: '1.0.0',
       memory: {
         used: Math.round(process.memoryUsage().heapUsed / 1024 / 1024) + ' MB',

@@ -101,7 +101,13 @@ export class RatingFilterDto {
   sortBy?: string = 'createdAt';
 
   @IsOptional()
-  @Transform(({ value }) => value?.toUpperCase())
+  @Transform(({ value }: { value: unknown }) => {
+    if (typeof value === 'string') {
+      const upperValue = value.toUpperCase();
+      return upperValue === 'ASC' || upperValue === 'DESC' ? upperValue : 'DESC';
+    }
+    return 'DESC';
+  })
   sortOrder?: 'ASC' | 'DESC' = 'DESC';
 }
 
@@ -114,20 +120,20 @@ export class RatingResponseDto {
   review?: string;
   tags?: string[];
   createdAt: Date;
-  
+
   // Optional relations data
   ratedBy?: {
     id: string;
     firstName: string;
     lastName: string;
   };
-  
+
   ratedUser?: {
     id: string;
     firstName: string;
     lastName: string;
   };
-  
+
   ride?: {
     id: string;
     pickupLocation: string;

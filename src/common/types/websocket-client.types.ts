@@ -36,7 +36,7 @@ export interface NotificationData {
   type: 'ride_request' | 'ride_accepted' | 'ride_cancelled' | 'payment' | 'surge_pricing';
   title: string;
   message: string;
-  data?: any;
+  data?: unknown;
 }
 
 export interface SurgePricingUpdate {

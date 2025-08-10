@@ -6,5 +6,5 @@ export enum RideStatus {
   COMPLETED = 'completed',
   CANCELLED_BY_RIDER = 'cancelled_by_rider',
   CANCELLED_BY_DRIVER = 'cancelled_by_driver',
-  CANCELLED_BY_SYSTEM = 'cancelled_by_system'
+  CANCELLED_BY_SYSTEM = 'cancelled_by_system',
 }

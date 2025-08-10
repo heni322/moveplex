@@ -1,9 +1,4 @@
-import {
-  Injectable,
-  NotFoundException,
-  BadRequestException,
-  Logger,
-} from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import {
@@ -100,12 +95,9 @@ export class SurgePricingService {
     }
 
     if (filterDto.endDate) {
-      queryBuilder.andWhere(
-        '(sp.endsAt IS NULL OR sp.endsAt <= :endDate)',
-        {
-          endDate: new Date(filterDto.endDate),
-        },
-      );
+      queryBuilder.andWhere('(sp.endsAt IS NULL OR sp.endsAt <= :endDate)', {
+        endDate: new Date(filterDto.endDate),
+      });
     }
 
     // Add pagination
@@ -126,10 +118,7 @@ export class SurgePricingService {
     };
   }
 
-  async updateSurgeArea(
-    surgeId: string,
-    updateDto: UpdateSurgePricingDto,
-  ): Promise<SurgePricing> {
+  async updateSurgeArea(surgeId: string, updateDto: UpdateSurgePricingDto): Promise<SurgePricing> {
     const surgeArea = await this.getSurgeArea(surgeId);
 
     try {
@@ -212,9 +201,7 @@ export class SurgePricingService {
       }
 
       // Use the highest multiplier if multiple surge areas overlap
-      const highestMultiplier = Math.max(
-        ...activeSurgeAreas.map((area) => Number(area.multiplier)),
-      );
+      const highestMultiplier = Math.max(...activeSurgeAreas.map(area => Number(area.multiplier)));
 
       return {
         inSurgeArea: true,
@@ -246,23 +233,19 @@ export class SurgePricingService {
    */
   private coordinatesToPolygonWKT(coordinates: number[][]): string {
     if (coordinates.length < 4) {
-      throw new BadRequestException(
-        'Polygon must have at least 4 coordinate pairs',
-      );
+      throw new BadRequestException('Polygon must have at least 4 coordinate pairs');
     }
 
     // Ensure polygon is closed (first and last points are the same)
     const lastPoint = coordinates[coordinates.length - 1];
     const firstPoint = coordinates[0];
-    
+
     if (lastPoint[0] !== firstPoint[0] || lastPoint[1] !== firstPoint[1]) {
       coordinates.push([firstPoint[0], firstPoint[1]]);
     }
 
     // Convert coordinates to WKT format: POLYGON((lng1 lat1, lng2 lat2, ...))
-    const coordinateString = coordinates
-      .map((coord) => `${coord[0]} ${coord[1]}`)
-      .join(', ');
+    const coordinateString = coordinates.map(coord => `${coord[0]} ${coord[1]}`).join(', ');
 
     return `POLYGON((${coordinateString}))`;
   }
@@ -270,10 +253,8 @@ export class SurgePricingService {
   /**
    * Bulk create surge areas (useful for seeding or batch operations)
    */
-  async bulkCreateSurgeAreas(
-    createDtos: CreateSurgePricingDto[],
-  ): Promise<SurgePricing[]> {
-    const surgeAreas = createDtos.map((dto) => {
+  async bulkCreateSurgeAreas(createDtos: CreateSurgePricingDto[]): Promise<SurgePricing[]> {
+    const surgeAreas = createDtos.map(dto => {
       const polygonWKT = this.coordinatesToPolygonWKT(dto.coordinates);
 
       return this.surgePricingRepository.create({

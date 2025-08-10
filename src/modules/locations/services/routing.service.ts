@@ -4,6 +4,42 @@ import { ConfigService } from '@nestjs/config';
 import { firstValueFrom } from 'rxjs';
 import { RouteResult, Coordinates } from '../interfaces/location.interfaces';
 
+// Define interfaces for OpenRouteService API responses
+interface RouteStep {
+  instruction: string;
+  distance: number;
+  duration: number;
+  type: number;
+}
+
+interface RouteSegment {
+  steps?: RouteStep[];
+}
+
+interface RouteSummary {
+  distance: number;
+  duration: number;
+}
+
+interface RouteGeometry {
+  coordinates: number[][];
+}
+
+interface Route {
+  summary: RouteSummary;
+  geometry: RouteGeometry;
+  segments: RouteSegment[];
+}
+
+interface RouteResponse {
+  routes: Route[];
+}
+
+interface MatrixResponse {
+  distances: number[][];
+  durations: number[][];
+}
+
 @Injectable()
 export class RoutingService {
   private readonly logger = new Logger(RoutingService.name);
@@ -36,37 +72,41 @@ export class RoutingService {
         instructions: true,
         geometry: true,
       };
-      console.log("profile", profile);
-      console.log("apiKey", this.apiKey);
-      console.log("requestBody", requestBody);
+
+      this.logger.debug('Getting route', { profile, requestBody });
+
       const response = await firstValueFrom(
         this.httpService.post(
           `${this.openRouteServiceUrl}/v2/directions/${profile}/json`,
           requestBody,
           {
             headers: {
-              'Authorization': this.apiKey,
+              Authorization: this.apiKey,
               'Content-Type': 'application/json',
             },
           },
         ),
       );
 
-      const route = response.data.routes[0];
-      
+      const routeData = response.data as RouteResponse;
+      const route = routeData.routes[0];
+
       return {
         distance: route.summary.distance,
         duration: route.summary.duration,
         geometry: route.geometry.coordinates,
-        instructions: route.segments[0].steps?.map((step: any) => ({
-          instruction: step.instruction,
-          distance: step.distance,
-          duration: step.duration,
-          type: step.type,
-        })) || [],
+        instructions:
+          route.segments[0].steps?.map((step: RouteStep) => ({
+            instruction: step.instruction,
+            distance: step.distance,
+            duration: step.duration,
+            type: step.type,
+          })) ?? [],
       };
     } catch (error) {
-      this.logger.error(`Routing error: ${error.message}`, error.stack);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown routing error';
+      const errorStack = error instanceof Error ? error.stack : undefined;
+      this.logger.error(`Routing error: ${errorMessage}`, errorStack);
       throw new Error('Routing service unavailable');
     }
   }
@@ -89,24 +129,24 @@ export class RoutingService {
       };
 
       const response = await firstValueFrom(
-        this.httpService.post(
-          `${this.openRouteServiceUrl}/v2/matrix/${profile}`,
-          requestBody,
-          {
-            headers: {
-              'Authorization': this.apiKey,
-              'Content-Type': 'application/json',
-            },
+        this.httpService.post(`${this.openRouteServiceUrl}/v2/matrix/${profile}`, requestBody, {
+          headers: {
+            Authorization: this.apiKey,
+            'Content-Type': 'application/json',
           },
-        ),
+        }),
       );
 
+      const matrixData = response.data as MatrixResponse;
+
       return {
-        distances: response.data.distances,
-        durations: response.data.durations,
+        distances: matrixData.distances,
+        durations: matrixData.durations,
       };
     } catch (error) {
-      this.logger.error(`Matrix routing error: ${error.message}`, error.stack);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown matrix routing error';
+      const errorStack = error instanceof Error ? error.stack : undefined;
+      this.logger.error(`Matrix routing error: ${errorMessage}`, errorStack);
       throw new Error('Matrix routing service unavailable');
     }
   }
@@ -130,30 +170,35 @@ export class RoutingService {
           requestBody,
           {
             headers: {
-              'Authorization': this.apiKey,
+              Authorization: this.apiKey,
               'Content-Type': 'application/json',
             },
           },
         ),
       );
 
-      const route = response.data.routes[0];
-      
+      const routeData = response.data as RouteResponse;
+      const route = routeData.routes[0];
+
       return {
         distance: route.summary.distance,
         duration: route.summary.duration,
         geometry: route.geometry.coordinates,
-        instructions: route.segments.flatMap((segment: any) => 
-          segment.steps?.map((step: any) => ({
-            instruction: step.instruction,
-            distance: step.distance,
-            duration: step.duration,
-            type: step.type,
-          })) || []
+        instructions: route.segments.flatMap(
+          (segment: RouteSegment) =>
+            segment.steps?.map((step: RouteStep) => ({
+              instruction: step.instruction,
+              distance: step.distance,
+              duration: step.duration,
+              type: step.type,
+            })) ?? [],
         ),
       };
     } catch (error) {
-      this.logger.error(`Optimized routing error: ${error.message}`, error.stack);
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown optimized routing error';
+      const errorStack = error instanceof Error ? error.stack : undefined;
+      this.logger.error(`Optimized routing error: ${errorMessage}`, errorStack);
       throw new Error('Optimized routing service unavailable');
     }
   }

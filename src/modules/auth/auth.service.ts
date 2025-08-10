@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException, ConflictException, ForbiddenException } from '@nestjs/common';
+import { Injectable, UnauthorizedException, ConflictException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, LessThan, MoreThan, Repository } from 'typeorm';
@@ -33,18 +33,19 @@ export class AuthService {
   ) {}
 
   async register(registerDto: RegisterDto): Promise<AuthResponse> {
-    const { email, password, role, firstName, lastName, phone, license_number, license_expiry } = registerDto;
+    const { email, password, role, firstName, lastName, phone, license_number, license_expiry } =
+      registerDto;
 
     // Check for existing users (combine into single query for better performance)
     const existingUsers = await this.userRepository.find({
       where: [{ email }, { phone }],
-      select: ['id', 'email', 'phone']
+      select: ['id', 'email', 'phone'],
     });
 
     if (existingUsers.some(user => user.email === email)) {
       throw new ConflictException('User with this email already exists');
     }
-    
+
     if (existingUsers.some(user => user.phone === phone)) {
       throw new ConflictException('User with this phone number already exists');
     }
@@ -101,7 +102,7 @@ export class AuthService {
     }
 
     const isPasswordValid = await this.validatePassword(password, user.passwordHash);
-    
+
     if (!isPasswordValid) {
       // Implement failed login attempt tracking
       await this.handleFailedLogin(user);
@@ -122,16 +123,19 @@ export class AuthService {
   async refreshToken(refreshTokenDto: RefreshTokenDto): Promise<AuthResponse> {
     const { refresh_token } = refreshTokenDto;
 
+    // Await the hashed token here
+    const hashedToken = await this.hashRefreshToken(refresh_token);
+
     const tokenRecord = await this.refreshTokenRepository.findOne({
-      where: { 
-        token: await this.hashRefreshToken(refresh_token),
+      where: {
+        token: hashedToken,
         expiresAt: MoreThan(new Date()),
-        isRevoked: false 
+        isRevoked: false,
       },
       relations: ['user'],
     });
 
-    if (!tokenRecord || !tokenRecord.user.isActive) {
+    if (!tokenRecord?.user.isActive) {
       throw new UnauthorizedException('Invalid refresh token');
     }
 
@@ -144,24 +148,18 @@ export class AuthService {
 
   async logout(refreshToken: string): Promise<void> {
     const hashedToken = await this.hashRefreshToken(refreshToken);
-    await this.refreshTokenRepository.update(
-      { token: hashedToken },
-      { isRevoked: true }
-    );
+    await this.refreshTokenRepository.update({ token: hashedToken }, { isRevoked: true });
   }
 
   async logoutAll(userId: string): Promise<void> {
-    await this.refreshTokenRepository.update(
-      { user: { id: userId } },
-      { isRevoked: true }
-    );
+    await this.refreshTokenRepository.update({ user: { id: userId } }, { isRevoked: true });
   }
 
   async validateUser(id: string): Promise<User> {
     const user = await this.userRepository.findOne({
       where: { id, isActive: true },
       relations: ['driverProfile'],
-      select: ['id', 'email', 'firstName', 'lastName', 'userType', 'isVerified', 'phone']
+      select: ['id', 'email', 'firstName', 'lastName', 'userType', 'isVerified', 'phone'],
     });
 
     if (!user) {
@@ -171,7 +169,11 @@ export class AuthService {
     return user;
   }
 
-  private async generateTokenPair(user: User, userAgent?: string, ipAddress?: string): Promise<AuthResponse> {
+  private async generateTokenPair(
+    user: User,
+    userAgent?: string,
+    ipAddress?: string,
+  ): Promise<AuthResponse> {
     const payload: TokenPayload = {
       sub: user.id,
       email: user.email,
@@ -227,7 +229,7 @@ export class AuthService {
   }
 
   private async hashRefreshToken(token: string): Promise<string> {
-    return crypto.createHash('sha256').update(token).digest('hex');
+    return Promise.resolve(crypto.createHash('sha256').update(token).digest('hex'));
   }
 
   private async cleanupUserRefreshTokens(userId: string): Promise<void> {
@@ -247,7 +249,7 @@ export class AuthService {
       const tokensToRevoke = activeTokens.slice(this.MAX_REFRESH_TOKENS - 1);
       await this.refreshTokenRepository.update(
         { id: In(tokensToRevoke.map(t => t.id)) },
-        { isRevoked: true }
+        { isRevoked: true },
       );
     }
   }
@@ -257,7 +259,7 @@ export class AuthService {
     const lockDuration = 15 * 60 * 1000; // 15 minutes
 
     const failedAttempts = (user.failedLoginAttempts || 0) + 1;
-    
+
     if (failedAttempts >= maxAttempts) {
       await this.userRepository.update(user.id, {
         failedLoginAttempts: failedAttempts,

@@ -37,7 +37,7 @@ export class Notification {
   message: string;
 
   @Column({ type: 'jsonb', nullable: true })
-  data?: any; // Additional data for the notification
+  data?: unknown; // Additional data for the notification
 
   @Column({
     type: 'enum',

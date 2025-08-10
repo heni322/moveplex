@@ -1,5 +1,5 @@
 import { Socket } from 'socket.io';
-export interface WebSocketResponse<T = any> {
+export interface WebSocketResponse<T = unknown> {
   event: string;
   data: T;
   timestamp: Date;

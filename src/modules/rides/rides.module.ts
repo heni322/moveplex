@@ -9,15 +9,7 @@ import { Payment } from 'src/database/entities/payment.entity';
 import { RatingReview } from 'src/database/entities/rating-review.entity';
 
 @Module({
-  imports: [
-    TypeOrmModule.forFeature([
-      Ride,
-      User,
-      RideTracking,
-      Payment,
-      RatingReview,
-    ]),
-  ],
+  imports: [TypeOrmModule.forFeature([Ride, User, RideTracking, Payment, RatingReview])],
   controllers: [RidesController],
   providers: [RidesService],
   exports: [RidesService],

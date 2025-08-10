@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { NearbyDriver, Coordinates, SurgeArea } from '../interfaces/location.interfaces';
@@ -6,9 +6,37 @@ import { DriverProfile } from 'src/database/entities/driver-profile.entity';
 import { SurgePricing } from 'src/database/entities/surge-pricing.entity';
 import { RideTracking } from 'src/database/entities/ride-tracking.entity';
 
+// Define interfaces for query results
+interface NearbyDriverQueryResult {
+  driver_id: string;
+  user_id: string;
+  latitude: string;
+  longitude: string;
+  distance_km: string;
+  rating: string;
+  vehicle_type: string;
+  status: string;
+}
+
+interface SurgeAreaQueryResult {
+  id: string;
+  area_name: string;
+  multiplier: string;
+  is_active: boolean;
+}
+
+interface SurgeMultiplierQueryResult {
+  multiplier: string;
+}
+
+interface DistanceQueryResult {
+  distance_km: string;
+}
 
 @Injectable()
 export class PostgisService {
+  private readonly logger = new Logger(PostgisService.name);
+
   constructor(
     @InjectRepository(DriverProfile)
     private readonly driverProfileRepository: Repository<DriverProfile>,
@@ -51,30 +79,32 @@ export class PostgisService {
       LIMIT $4
     `;
 
-    const result = await this.driverProfileRepository.query(query, [
+    const rawResult: unknown = await this.driverProfileRepository.query(query, [
       coordinates.longitude,
       coordinates.latitude,
       radiusKm,
       limit,
     ]);
 
-    return result.map((row: any) => ({
-      driverId: row.driver_id,
-      userId: row.user_id,
-      latitude: parseFloat(row.latitude),
-      longitude: parseFloat(row.longitude),
-      distanceKm: parseFloat(row.distance_km),
-      rating: parseFloat(row.rating),
-      vehicleType: row.vehicle_type,
-      status: row.status,
-    }));
+    const result = rawResult as NearbyDriverQueryResult[];
+
+    return result.map(
+      (row: NearbyDriverQueryResult): NearbyDriver => ({
+        driverId: row.driver_id,
+        userId: row.user_id,
+        latitude: parseFloat(row.latitude),
+        longitude: parseFloat(row.longitude),
+        distanceKm: parseFloat(row.distance_km),
+        rating: parseFloat(row.rating),
+        vehicleType: row.vehicle_type,
+        status: row.status,
+      }),
+    );
   }
 
- async updateDriverLocation(
-    driverId: string,
-    coordinates: Coordinates,
-  ): Promise<void> {
-    console.log("coordinates", coordinates);
+  async updateDriverLocation(driverId: string, coordinates: Coordinates): Promise<void> {
+    this.logger.debug('Updating driver location', { driverId, coordinates });
+
     const query = `
       UPDATE driver_profiles 
       SET 
@@ -90,7 +120,7 @@ export class PostgisService {
       coordinates.longitude,
     ]);
   }
-  
+
   async addRideTrackingPoint(
     rideId: string,
     coordinates: Coordinates,
@@ -125,10 +155,12 @@ export class PostgisService {
       LIMIT 1
     `;
 
-    const result = await this.surgePricingRepository.query(query, [
+    const rawResult: unknown = await this.surgePricingRepository.query(query, [
       coordinates.longitude,
       coordinates.latitude,
     ]);
+
+    const result = rawResult as SurgeMultiplierQueryResult[];
 
     return result.length > 0 ? parseFloat(result[0].multiplier) : 1.0;
   }
@@ -147,20 +179,20 @@ export class PostgisService {
         AND (ends_at IS NULL OR ends_at >= NOW())
     `;
 
-    const result = await this.surgePricingRepository.query(query);
+    const rawResult: unknown = await this.surgePricingRepository.query(query);
+    const result = rawResult as SurgeAreaQueryResult[];
 
-    return result.map((row: any) => ({
-      id: row.id,
-      areaName: row.area_name,
-      multiplier: parseFloat(row.multiplier),
-      isActive: row.is_active,
-    }));
+    return result.map(
+      (row: SurgeAreaQueryResult): SurgeArea => ({
+        id: row.id,
+        areaName: row.area_name,
+        multiplier: parseFloat(row.multiplier),
+        isActive: row.is_active,
+      }),
+    );
   }
 
-  async calculateDistance(
-    point1: Coordinates,
-    point2: Coordinates,
-  ): Promise<number> {
+  async calculateDistance(point1: Coordinates, point2: Coordinates): Promise<number> {
     const query = `
       SELECT ST_Distance(
         ST_SetSRID(ST_MakePoint($1, $2), 4326)::geography,
@@ -168,12 +200,14 @@ export class PostgisService {
       ) / 1000 as distance_km
     `;
 
-    const result = await this.driverProfileRepository.query(query, [
+    const rawResult: unknown = await this.driverProfileRepository.query(query, [
       point1.longitude,
       point1.latitude,
       point2.longitude,
       point2.latitude,
     ]);
+
+    const result = rawResult as DistanceQueryResult[];
 
     return parseFloat(result[0].distance_km);
   }

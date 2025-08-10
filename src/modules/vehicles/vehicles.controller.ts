@@ -9,11 +9,7 @@ import {
   Query,
   ValidationPipe,
 } from '@nestjs/common';
-import { 
-  CreateVehicleDto, 
-  UpdateVehicleDto, 
-  VehicleFilterDto 
-} from './dto/vehicles.dto';
+import { CreateVehicleDto, UpdateVehicleDto, VehicleFilterDto } from './dto/vehicles.dto';
 import { VehiclesService } from './vehicles.service';
 
 @Controller('vehicles')

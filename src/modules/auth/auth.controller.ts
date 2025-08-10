@@ -1,13 +1,13 @@
-import { 
-  Controller, 
-  Post, 
-  Body, 
-  UseGuards, 
-  Get, 
-  Req, 
-  HttpCode, 
+import {
+  Controller,
+  Post,
+  Body,
+  UseGuards,
+  Get,
+  Req,
+  HttpCode,
   HttpStatus,
-  Delete
+  Delete,
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { Throttle } from '@nestjs/throttler';
@@ -43,26 +43,26 @@ export class AuthController {
   @Post('refresh')
   @HttpCode(HttpStatus.OK)
   async refreshToken(@Body() refreshTokenDto: RefreshTokenDto) {
-    return this.authService.refreshToken(refreshTokenDto);
+    return await this.authService.refreshToken(refreshTokenDto);
   }
 
   @Post('logout')
   @HttpCode(HttpStatus.NO_CONTENT)
   @UseGuards(AuthGuard('jwt'))
   async logout(@Body() refreshTokenDto: RefreshTokenDto) {
-    return this.authService.logout(refreshTokenDto.refresh_token);
+    return await this.authService.logout(refreshTokenDto.refresh_token);
   }
 
   @Delete('logout/all')
   @HttpCode(HttpStatus.NO_CONTENT)
   @UseGuards(AuthGuard('jwt'))
   async logoutAll(@CurrentUser() user: User) {
-    return this.authService.logoutAll(user.id);
+    return await this.authService.logoutAll(user.id);
   }
 
   @Get('profile')
   @UseGuards(AuthGuard('jwt'))
-  async getProfile(@CurrentUser() user: User) {
+  getProfile(@CurrentUser() user: User) {
     return {
       id: user.id,
       email: user.email,
