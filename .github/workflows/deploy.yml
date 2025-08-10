@@ -108,13 +108,14 @@ jobs:
             else
               echo "⚠️  Directory exists but is not a git repository. Backing up and cloning fresh..."
               cd /var/www/
-              mv ride-sharing-app ride-sharing-app.backup.$(date +%Y%m%d_%H%M%S)
+              sudo mv ride-sharing-app ride-sharing-app.backup.$(date +%Y%m%d_%H%M%S)
               git clone https://github.com/${{ github.repository }}.git ride-sharing-app
               cd ride-sharing-app
             fi
           else
             echo "📁 Creating new directory and cloning repository..."
-            mkdir -p /var/www/ride-sharing-app
+            sudo mkdir -p /var/www/ride-sharing-app
+            sudo chown $USER:$USER /var/www/ride-sharing-app
             cd /var/www/ride-sharing-app
             git clone https://github.com/${{ github.repository }}.git .
           fi
@@ -258,24 +259,24 @@ jobs:
           EOF
           
           # Stop existing containers (if any)
-          docker-compose -f docker-compose.prod.yml down || true
+          sudo docker-compose -f docker-compose.prod.yml down || true
           
           # Build and start services
-          docker-compose -f docker-compose.prod.yml up -d --build
+          sudo docker-compose -f docker-compose.prod.yml up -d --build
           
           # Wait for services to be ready
           echo "Waiting for services to be ready..."
           sleep 45
           
           # Run database migrations if available
-          docker-compose -f docker-compose.prod.yml exec -T app npm run migration:run || echo "Migration command not available or failed"
+          sudo docker-compose -f docker-compose.prod.yml exec -T app npm run migration:run || echo "Migration command not available or failed"
           
           # Clean up unused Docker images
-          docker image prune -f
+          sudo docker image prune -f
           
           # Show service status
           echo "=== Service Status ==="
-          docker-compose -f docker-compose.prod.yml ps
+          sudo docker-compose -f docker-compose.prod.yml ps
           
           # Test application health
           echo "=== Health Check ==="
@@ -286,5 +287,5 @@ jobs:
             echo "📚 API docs (if available): http://37.59.98.144/docs"
           else
             echo "⚠️  Application may not be ready yet. Check logs:"
-            echo "docker-compose -f docker-compose.prod.yml logs app"
+            echo "sudo docker-compose -f docker-compose.prod.yml logs app"
           fi
