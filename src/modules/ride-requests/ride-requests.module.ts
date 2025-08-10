@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { RideRequest } from 'src/database/entities/ride-request.entity';
-import { User } from 'src/database/entities/user.entity';
+import { User } from '../../database/entities/user.entity';
 import { RideRequestsController } from './ride-requests.controller';
 import { RideRequestsService } from './ride-requests.service';
 import { DriverProfile } from 'src/database/entities/driver-profile.entity';

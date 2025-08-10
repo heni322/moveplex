@@ -8,7 +8,7 @@ import * as crypto from 'crypto';
 
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
-import { User } from 'src/database/entities/user.entity';
+import { User } from '../../database/entities/user.entity';
 import { DriverProfile } from 'src/database/entities/driver-profile.entity';
 import { UserType } from 'src/common/enums/user-types.enum';
 import { AuthResponse } from 'src/common/interfaces/auth-response.interface';

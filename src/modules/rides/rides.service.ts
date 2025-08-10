@@ -16,7 +16,7 @@ import {
   RideStatsDto,
 } from './dto/rides.dto';
 import { Ride, RideStatus } from 'src/database/entities/ride.entity';
-import { User } from 'src/database/entities/user.entity';
+import { User } from '../../database/entities/user.entity';
 import { RideTracking } from 'src/database/entities/ride-tracking.entity';
 import { PaymentStatus } from '../../common/enums/payment-status.enum';
 
