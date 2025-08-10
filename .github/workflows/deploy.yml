@@ -94,7 +94,17 @@ jobs:
         key: ${{ secrets.VPS_SSH_KEY }}
         port: ${{ secrets.VPS_PORT }}
         script: |
-          # Check if directory exists and handle accordingly
+          # Ensure proper permissions for /var/www
+          sudo chown -R $USER:$USER /var/www/
+          sudo chmod -R 755 /var/www/
+          
+          # Stop existing containers to free up resources
+          if [ -d "/var/www/ride-sharing-app" ]; then
+            cd /var/www/ride-sharing-app
+            docker-compose -f docker-compose.prod.yml down || true
+          fi
+          
+          # Clean up existing directory if needed
           if [ -d "/var/www/ride-sharing-app" ]; then
             echo "📁 Directory /var/www/ride-sharing-app exists"
             cd /var/www/ride-sharing-app
@@ -106,19 +116,28 @@ jobs:
               git reset --hard origin/main
               git clean -fd
             else
-              echo "⚠️  Directory exists but is not a git repository. Backing up and cloning fresh..."
+              echo "⚠️  Directory exists but is not a git repository. Removing and cloning fresh..."
               cd /var/www/
-              sudo mv ride-sharing-app ride-sharing-app.backup.$(date +%Y%m%d_%H%M%S)
+              rm -rf ride-sharing-app
               git clone https://github.com/${{ github.repository }}.git ride-sharing-app
               cd ride-sharing-app
             fi
           else
             echo "📁 Creating new directory and cloning repository..."
-            sudo mkdir -p /var/www/ride-sharing-app
-            sudo chown $USER:$USER /var/www/ride-sharing-app
+            mkdir -p /var/www/ride-sharing-app
             cd /var/www/ride-sharing-app
             git clone https://github.com/${{ github.repository }}.git .
           fi
+          
+          # Verify nginx configuration exists
+          if [ ! -f "nginx/nginx.conf" ]; then
+            echo "❌ nginx/nginx.conf not found in repository!"
+            echo "Repository contents:"
+            ls -la
+            echo "Please create nginx/nginx.conf in your project root and commit it."
+            exit 1
+          fi
+          echo "✅ nginx/nginx.conf found"
           
           # Create .env file from secrets
           cat > .env << EOF
@@ -140,14 +159,6 @@ jobs:
           ORS_API_KEY=${{ secrets.ORS_API_KEY }}
           EOF
           
-          # Verify nginx configuration exists
-          if [ ! -f "nginx/nginx.conf" ]; then
-            echo "❌ nginx/nginx.conf not found in repository!"
-            echo "Please create nginx/nginx.conf in your project root and commit it."
-            exit 1
-          fi
-          echo "✅ nginx/nginx.conf found"
-          
           # Create production docker-compose file
           cat > docker-compose.prod.yml << 'EOF'
           version: '3.8'
@@ -164,8 +175,6 @@ jobs:
                 PGDATA: /var/lib/postgresql/data/pgdata
               volumes:
                 - postgres_data:/var/lib/postgresql/data
-              ports:
-                - "5432:5432"
               networks:
                 - ride_network
               healthcheck:
@@ -181,8 +190,6 @@ jobs:
               command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD}
               volumes:
                 - redis_data:/data
-              ports:
-                - "6379:6379"
               networks:
                 - ride_network
               healthcheck:
@@ -258,25 +265,22 @@ jobs:
               driver: bridge
           EOF
           
-          # Stop existing containers (if any)
-          sudo docker-compose -f docker-compose.prod.yml down || true
-          
           # Build and start services
-          sudo docker-compose -f docker-compose.prod.yml up -d --build
+          docker-compose -f docker-compose.prod.yml up -d --build
           
           # Wait for services to be ready
           echo "Waiting for services to be ready..."
           sleep 45
           
           # Run database migrations if available
-          sudo docker-compose -f docker-compose.prod.yml exec -T app npm run migration:run || echo "Migration command not available or failed"
+          docker-compose -f docker-compose.prod.yml exec -T app npm run migration:run || echo "Migration command not available or failed"
           
           # Clean up unused Docker images
-          sudo docker image prune -f
+          docker image prune -f
           
           # Show service status
           echo "=== Service Status ==="
-          sudo docker-compose -f docker-compose.prod.yml ps
+          docker-compose -f docker-compose.prod.yml ps
           
           # Test application health
           echo "=== Health Check ==="
@@ -287,5 +291,5 @@ jobs:
             echo "📚 API docs (if available): http://37.59.98.144/docs"
           else
             echo "⚠️  Application may not be ready yet. Check logs:"
-            echo "sudo docker-compose -f docker-compose.prod.yml logs app"
+            echo "docker-compose -f docker-compose.prod.yml logs app"
           fi
