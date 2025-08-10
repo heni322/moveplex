@@ -6,7 +6,7 @@ import {
   InternalServerErrorException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { RatingReview } from 'src/database/entities/rating-review.entity';
+import { RatingReview } from '../../database/entities/rating-review.entity';
 import { Repository } from 'typeorm';
 import {
   CreateRatingDto,

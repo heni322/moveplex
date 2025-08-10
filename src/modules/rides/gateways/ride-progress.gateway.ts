@@ -8,8 +8,8 @@ import {
   WebSocketGateway,
   WebSocketServer,
 } from '@nestjs/websockets';
-import { JwtAuthGuard } from 'src/common/guards/jwt-auth.guard';
-import { LocationsService } from 'src/modules/locations/services/locations.service';
+import { JwtAuthGuard } from '../../../common/guards/jwt-auth.guard';
+import { LocationsService } from '../../../modules/locations/services/locations.service';
 import { Server, Socket } from 'socket.io';
 
 @WebSocketGateway({

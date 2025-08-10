@@ -12,7 +12,7 @@ import {
   Length,
 } from 'class-validator';
 import { Transform } from 'class-transformer';
-import { DriverStatus } from 'src/database/entities/driver-profile.entity';
+import { DriverStatus } from '../../../database/entities/driver-profile.entity';
 
 export class CreateDriverProfileDto {
   @IsString()

@@ -1,7 +1,7 @@
 import { Injectable, CanActivate, ExecutionContext, ForbiddenException } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { Request } from 'express';
-import { UserType } from 'src/common/enums/user-types.enum';
+import { UserType } from '../../common/enums/user-types.enum';
 import { User } from '../../database/entities/user.entity';
 
 interface RequestWithUser extends Request {

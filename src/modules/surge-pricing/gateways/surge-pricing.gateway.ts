@@ -9,7 +9,7 @@ import {
   WebSocketServer,
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
-import { LocationsService } from 'src/modules/locations/services/locations.service';
+import { LocationsService } from '../../../modules/locations/services/locations.service';
 
 @WebSocketGateway({
   namespace: 'surge-pricing',

@@ -7,7 +7,7 @@ import {
   NotificationFilterDto,
   UpdateNotificationStatusDto,
 } from './dto/notifications.dto';
-import { NotificationStatus, Notification } from 'src/database/entities/notification.entity';
+import { NotificationStatus, Notification } from '../../database/entities/notification.entity';
 
 // Define interfaces for query results to fix typing issues
 interface TypeStatsResult {

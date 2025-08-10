@@ -5,7 +5,7 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DriverProfile, DriverStatus } from 'src/database/entities/driver-profile.entity';
+import { DriverProfile, DriverStatus } from '../../database/entities/driver-profile.entity';
 import { Point, Repository } from 'typeorm';
 import {
   CreateDriverProfileDto,
@@ -14,8 +14,18 @@ import {
   UpdateDriverProfileDto,
 } from './dto/driver-profile.dto';
 
-interface UpdateDriverProfileData extends Partial<UpdateDriverProfileDto> {
+// Create a proper interface for update data that matches TypeORM's requirements
+interface UpdateDriverProfileData {
+  licenseNumber?: string;
+  licenseExpiry?: string;
+  vehicleId?: string;
+  isOnline?: boolean;
+  currentLatitude?: number;
+  currentLongitude?: number;
   currentLocation?: Point;
+  rating?: number;
+  totalRides?: number;
+  status?: DriverStatus;
 }
 
 @Injectable()
@@ -81,24 +91,57 @@ export class DriverProfileService {
     }
 
     // Validate license expiry if provided
+    let processedLicenseExpiry: string | undefined;
     if (updateDto.licenseExpiry) {
       const licenseExpiryDate = new Date(updateDto.licenseExpiry);
       if (licenseExpiryDate <= new Date()) {
         throw new BadRequestException('License expiry date must be in the future');
       }
-      updateDto.licenseExpiry = licenseExpiryDate.toISOString();
+      processedLicenseExpiry = licenseExpiryDate.toISOString();
+    }
+
+    // Build update data with only the fields that should be updated
+    const updateData: UpdateDriverProfileData = {};
+    
+    if (updateDto.licenseNumber !== undefined) {
+      updateData.licenseNumber = updateDto.licenseNumber;
+    }
+    
+    if (processedLicenseExpiry !== undefined) {
+      updateData.licenseExpiry = processedLicenseExpiry;
+    }
+    
+    if (updateDto.vehicleId !== undefined) {
+      updateData.vehicleId = updateDto.vehicleId;
+    }
+    
+    if (updateDto.isOnline !== undefined) {
+      updateData.isOnline = updateDto.isOnline;
+    }
+    
+    if (updateDto.rating !== undefined) {
+      updateData.rating = updateDto.rating;
+    }
+    
+    if (updateDto.totalRides !== undefined) {
+      updateData.totalRides = updateDto.totalRides;
+    }
+    
+    if (updateDto.status !== undefined) {
+      updateData.status = updateDto.status;
     }
 
     // Update location if coordinates are provided
-    const updateData: UpdateDriverProfileData = { ...updateDto };
-    if (updateDto.currentLatitude && updateDto.currentLongitude) {
+    if (updateDto.currentLatitude !== undefined && updateDto.currentLongitude !== undefined) {
+      updateData.currentLatitude = updateDto.currentLatitude;
+      updateData.currentLongitude = updateDto.currentLongitude;
       updateData.currentLocation = this.createPointFromCoordinates(
         updateDto.currentLatitude,
         updateDto.currentLongitude,
       );
     }
 
-    await this.driverProfileRepository.update(driverId, updateData as Partial<DriverProfile>);
+    await this.driverProfileRepository.update(driverId, updateData);
 
     const updatedProfile = await this.driverProfileRepository.findOne({
       where: { id: driverId },
@@ -123,11 +166,14 @@ export class DriverProfileService {
     // Update online status based on driver status
     const isOnline = status !== DriverStatus.OFFLINE;
 
-    // Use the actual profile ID for the update, not the userId
-    await this.driverProfileRepository.update(driverProfile.id, {
+    // Create proper update data
+    const updateData: UpdateDriverProfileData = {
       status,
       isOnline,
-    });
+    };
+
+    // Use the actual profile ID for the update, not the userId
+    await this.driverProfileRepository.update(driverProfile.id, updateData);
 
     // Find the updated profile using the profile ID
     const updatedProfile = await this.driverProfileRepository.findOne({
@@ -154,10 +200,14 @@ export class DriverProfileService {
     // Update status based on online state
     const status = isOnline ? DriverStatus.ONLINE : DriverStatus.OFFLINE;
 
-    await this.driverProfileRepository.update(driverId, {
+    // Create proper update data
+    const updateData: UpdateDriverProfileData = {
       isOnline,
       status,
-    });
+    };
+
+    // Fix: Use profile.id instead of driverId for the update
+    await this.driverProfileRepository.update(driverProfile.id, updateData);
 
     const updatedProfile = await this.driverProfileRepository.findOne({
       where: { userId: driverId },
@@ -203,7 +253,8 @@ export class DriverProfileService {
       throw new NotFoundException('Driver profile not found');
     }
 
-    await this.driverProfileRepository.update(driverId, { vehicleId });
+    const updateData: UpdateDriverProfileData = { vehicleId };
+    await this.driverProfileRepository.update(driverId, updateData);
 
     const updatedProfile = await this.driverProfileRepository.findOne({
       where: { id: driverId },
@@ -222,11 +273,13 @@ export class DriverProfileService {
       throw new NotFoundException('Driver profile not found');
     }
 
-    await this.driverProfileRepository.update(driverId, {
+    const updateData: UpdateDriverProfileData = {
       currentLatitude: latitude,
       currentLongitude: longitude,
       currentLocation: this.createPointFromCoordinates(latitude, longitude),
-    });
+    };
+
+    await this.driverProfileRepository.update(driverId, updateData);
   }
 
   async findNearbyDrivers(

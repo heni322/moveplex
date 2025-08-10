@@ -7,7 +7,7 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { CreateVehicleDto, UpdateVehicleDto, VehicleFilterDto } from './dto/vehicles.dto';
-import { Vehicle } from 'src/database/entities/vehicle.entity';
+import { Vehicle } from '../../database/entities/vehicle.entity';
 
 @Injectable()
 export class VehiclesService {

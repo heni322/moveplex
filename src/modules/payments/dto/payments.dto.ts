@@ -11,7 +11,7 @@ import {
   IsDateString,
 } from 'class-validator';
 import { Type } from 'class-transformer';
-import { PaymentMethod, PaymentType } from 'src/database/entities/payment.entity';
+import { PaymentMethod, PaymentType } from '../../../database/entities/payment.entity';
 import { PaymentStatus } from '../../../common/enums/payment-status.enum';
 
 export class CreatePaymentDto {

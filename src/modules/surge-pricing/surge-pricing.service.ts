@@ -7,7 +7,7 @@ import {
   LocationSurgeResponseDto,
   CreateSurgePricingDto,
 } from './dto/surge-pricing.dto';
-import { SurgePricing } from 'src/database/entities/surge-pricing.entity';
+import { SurgePricing } from '../../database/entities/surge-pricing.entity';
 
 @Injectable()
 export class SurgePricingService {

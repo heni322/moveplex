@@ -6,7 +6,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Payment } from 'src/database/entities/payment.entity';
+import { Payment } from '../../database/entities/payment.entity';
 import { Repository } from 'typeorm';
 import {
   CreatePaymentDto,

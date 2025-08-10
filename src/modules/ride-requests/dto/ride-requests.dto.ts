@@ -13,7 +13,7 @@ import {
   IsLongitude,
 } from 'class-validator';
 import { Transform, Type } from 'class-transformer';
-import { RideType } from 'src/database/entities/ride.entity';
+import { RideType } from '../../../database/entities/ride.entity';
 
 // Type definitions for GeoJSON and route data
 export interface GeoJSONGeometry {

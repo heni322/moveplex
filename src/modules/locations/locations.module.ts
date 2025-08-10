@@ -8,10 +8,10 @@ import { LocationsService } from './services/locations.service';
 import { GeocodingService } from './services/geocoding.service';
 import { RoutingService } from './services/routing.service';
 import { PostgisService } from './services/postgis.service';
-import { DriverProfile } from 'src/database/entities/driver-profile.entity';
-import { RideTracking } from 'src/database/entities/ride-tracking.entity';
-import { SurgePricing } from 'src/database/entities/surge-pricing.entity';
-import { Ride } from 'src/database/entities/ride.entity';
+import { DriverProfile } from '../../database/entities/driver-profile.entity';
+import { RideTracking } from '../../database/entities/ride-tracking.entity';
+import { SurgePricing } from '../../database/entities/surge-pricing.entity';
+import { Ride } from '../../database/entities/ride.entity';
 import { DriverLocationGateway } from './gateways/driver-location.gateway';
 
 @Module({

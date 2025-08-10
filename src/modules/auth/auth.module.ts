@@ -8,9 +8,9 @@ import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
 import { JwtStrategy } from '../../common/strategies/jwt.strategy';
 import { User } from '../../database/entities/user.entity';
-import { DriverProfile } from 'src/database/entities/driver-profile.entity';
-import { Ride } from 'src/database/entities/ride.entity';
-import { RefreshToken } from 'src/database/entities/refresh-token.entity'; // Add this import
+import { DriverProfile } from '../../database/entities/driver-profile.entity';
+import { Ride } from '../../database/entities/ride.entity';
+import { RefreshToken } from '../../database/entities/refresh-token.entity'; // Add this import
 
 @Module({
   imports: [

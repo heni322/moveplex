@@ -19,7 +19,7 @@ import { LoginDto } from './dto/login.dto';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { User } from '../../database/entities/user.entity';
 
-import { RefreshTokenDto } from 'src/common/dto/refresh-token.dto';
+import { RefreshTokenDto } from '../../common/dto/refresh-token.dto';
 
 @Controller('auth')
 export class AuthController {

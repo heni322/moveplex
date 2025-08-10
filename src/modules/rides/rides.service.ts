@@ -15,9 +15,9 @@ import {
   PaginatedRidesResponseDto,
   RideStatsDto,
 } from './dto/rides.dto';
-import { Ride, RideStatus } from 'src/database/entities/ride.entity';
+import { Ride, RideStatus } from '../../database/entities/ride.entity';
 import { User } from '../../database/entities/user.entity';
-import { RideTracking } from 'src/database/entities/ride-tracking.entity';
+import { RideTracking } from '../../database/entities/ride-tracking.entity';
 import { PaymentStatus } from '../../common/enums/payment-status.enum';
 
 @Injectable()

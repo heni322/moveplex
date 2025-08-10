@@ -2,9 +2,9 @@ import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { NearbyDriver, Coordinates, SurgeArea } from '../interfaces/location.interfaces';
-import { DriverProfile } from 'src/database/entities/driver-profile.entity';
-import { SurgePricing } from 'src/database/entities/surge-pricing.entity';
-import { RideTracking } from 'src/database/entities/ride-tracking.entity';
+import { DriverProfile } from '../../../database/entities/driver-profile.entity';
+import { SurgePricing } from '../../../database/entities/surge-pricing.entity';
+import { RideTracking } from '../../../database/entities/ride-tracking.entity';
 
 // Define interfaces for query results
 interface NearbyDriverQueryResult {

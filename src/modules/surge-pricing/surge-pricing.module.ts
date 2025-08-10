@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { SurgePricing } from 'src/database/entities/surge-pricing.entity';
+import { SurgePricing } from '../../database/entities/surge-pricing.entity';
 import { SurgePricingController } from './surge-pricing.controller';
 import { SurgePricingService } from './surge-pricing.service';
 

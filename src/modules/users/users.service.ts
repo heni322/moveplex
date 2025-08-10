@@ -16,7 +16,7 @@ import {
   UserProfileResponseDto,
 } from './dto/users.dto';
 import { User } from '../../database/entities/user.entity';
-import { UserType } from 'src/common/enums/user-types.enum';
+import { UserType } from '..//../common/enums/user-types.enum';
 
 @Injectable()
 export class UsersService {

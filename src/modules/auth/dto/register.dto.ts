@@ -7,7 +7,7 @@ import {
   IsPhoneNumber,
   IsDateString,
 } from 'class-validator';
-import { UserType } from 'src/common/enums/user-types.enum';
+import { UserType } from '../../../common/enums/user-types.enum';
 
 export class RegisterDto {
   @IsEmail()

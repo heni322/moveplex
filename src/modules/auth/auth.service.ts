@@ -9,12 +9,12 @@ import * as crypto from 'crypto';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { User } from '../../database/entities/user.entity';
-import { DriverProfile } from 'src/database/entities/driver-profile.entity';
-import { UserType } from 'src/common/enums/user-types.enum';
-import { AuthResponse } from 'src/common/interfaces/auth-response.interface';
-import { TokenPayload } from 'src/common/interfaces/token-payload.interface';
-import { RefreshToken } from 'src/database/entities/refresh-token.entity';
-import { RefreshTokenDto } from 'src/common/dto/refresh-token.dto';
+import { DriverProfile } from '../../database/entities/driver-profile.entity';
+import { UserType } from '../../common/enums/user-types.enum';
+import { AuthResponse } from '../../common/interfaces/auth-response.interface';
+import { TokenPayload } from '../../common/interfaces/token-payload.interface';
+import { RefreshToken } from '../../database/entities/refresh-token.entity';
+import { RefreshTokenDto } from '../../common/dto/refresh-token.dto';
 @Injectable()
 export class AuthService {
   private readonly ACCESS_TOKEN_EXPIRY = '15m'; // Shorter access token

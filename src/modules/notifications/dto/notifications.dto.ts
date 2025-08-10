@@ -10,8 +10,8 @@ import {
   Max,
 } from 'class-validator';
 import { Transform, Type } from 'class-transformer';
-import { NotificationStatus } from 'src/database/entities/notification.entity';
-import { NotificationType } from 'src/common/enums/notification-types.enum';
+import { NotificationStatus } from '../../../database/entities/notification.entity';
+import { NotificationType } from '../../../common/enums/notification-types.enum';
 
 // Define a type for notification data to avoid 'any'
 export type NotificationData = Record<string, unknown>;

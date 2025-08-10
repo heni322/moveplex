@@ -1,10 +1,10 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { RideRequest } from 'src/database/entities/ride-request.entity';
+import { RideRequest } from '../../database/entities/ride-request.entity';
 import { User } from '../../database/entities/user.entity';
 import { RideRequestsController } from './ride-requests.controller';
 import { RideRequestsService } from './ride-requests.service';
-import { DriverProfile } from 'src/database/entities/driver-profile.entity';
+import { DriverProfile } from '../../database/entities/driver-profile.entity';
 import { LocationsModule } from '../locations/locations.module';
 
 @Module({

@@ -8,8 +8,8 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, MoreThan } from 'typeorm';
 
-import { RideRequest } from 'src/database/entities/ride-request.entity';
-import { RideType } from 'src/database/entities/ride.entity';
+import { RideRequest } from '../../database/entities/ride-request.entity';
+import { RideType } from '../../database/entities/ride.entity';
 import {
   CreateRideRequestDto,
   CreateRideRequestResponseDto,

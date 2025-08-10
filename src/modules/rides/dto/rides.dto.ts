@@ -12,7 +12,7 @@ import {
   IsDateString,
 } from 'class-validator';
 import { Transform, Type } from 'class-transformer';
-import { RideStatus, RideType } from 'src/database/entities/ride.entity';
+import { RideStatus, RideType } from '../../../database/entities/ride.entity';
 import { PaymentStatus } from '../../../common/enums/payment-status.enum';
 
 export class CreateRideDto {
