@@ -25,9 +25,12 @@ RUN echo "🔨 Building application..." && \
 # Debug: Show build output
 RUN echo "📁 Build output:" && \
     ls -la dist/ && \
-    echo "📄 main.js content check:" && \
-    file dist/main.js && \
-    head -n 5 dist/main.js
+    echo "📁 Dist src directory:" && \
+    ls -la dist/src/ || echo "No dist/src directory" && \
+    echo "📄 Looking for main.js:" && \
+    find dist/ -name "main.js" -type f || echo "No main.js found" && \
+    echo "📄 All JS files in dist:" && \
+    find dist/ -name "*.js" -type f
 
 # Production stage
 FROM node:20-alpine AS production
@@ -58,8 +61,10 @@ RUN echo "📁 Files in production container:" && \
     ls -la && \
     echo "📁 Dist directory:" && \
     ls -la dist/ && \
-    echo "📄 main.js verification:" && \
-    test -f dist/main.js && echo "✅ main.js exists" || echo "❌ main.js missing"
+    echo "📁 Looking for main.js in dist/src:" && \
+    ls -la dist/src/ || echo "No dist/src directory" && \
+    echo "📄 Finding main.js:" && \
+    find dist/ -name "main.js" -type f || echo "No main.js found"
 
 # Create logs directory
 RUN mkdir -p logs && chown nestjs:nodejs logs
