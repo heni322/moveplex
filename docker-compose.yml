@@ -16,7 +16,7 @@ services:
     networks:
       - ride_network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DATABASE_USER:-postgres} -d ${DATABASE_NAME:-ride_sharing_db}"]
+      test: ["CMD-SHELL", "pg_isready -U ${DATABASE_USER:-moveplex} -d ${DATABASE_NAME:-ride_sharing_db}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -45,10 +45,12 @@ services:
       context: .
       dockerfile: Dockerfile
       target: production
+      args:
+        NODE_ENV: ${NODE_ENV:-production}
     container_name: ride_app
     restart: unless-stopped
     environment:
-      NODE_ENV: ${NODE_ENV:-development}
+      NODE_ENV: ${NODE_ENV:-production}
       DATABASE_HOST: postgres
       DATABASE_PORT: 5432
       DATABASE_USER: ${DATABASE_USER:-moveplex}
@@ -62,7 +64,7 @@ services:
       JWT_ACCESS_EXPIRY: ${JWT_ACCESS_EXPIRY:-15m}
       JWT_REFRESH_EXPIRY: ${JWT_REFRESH_EXPIRY:-7d}
       BCRYPT_ROUNDS: ${BCRYPT_ROUNDS:-12}
-      PORT: ${PORT:-3002}
+      PORT: 3000
       ORS_API_KEY: ${ORS_API_KEY}
     ports:
       - "3002:3000"

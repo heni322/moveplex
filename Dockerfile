@@ -6,14 +6,28 @@ WORKDIR /app
 # Copy package files
 COPY package*.json ./
 
-# Install all dependencies (including dev dependencies for building)
-RUN npm ci
+# Install dependencies with verbose logging
+RUN echo "📦 Installing dependencies..." && \
+    npm ci --no-audit --no-fund && \
+    echo "✅ Dependencies installed"
 
 # Copy source code
 COPY . .
 
-# Build the application
-RUN npm run build
+# Debug: Show what files we have
+RUN echo "📁 Files in /app before build:" && ls -la
+
+# Build the application with verbose output
+RUN echo "🔨 Building application..." && \
+    npm run build && \
+    echo "✅ Build completed"
+
+# Debug: Show build output
+RUN echo "📁 Build output:" && \
+    ls -la dist/ && \
+    echo "📄 main.js content check:" && \
+    file dist/main.js && \
+    head -n 5 dist/main.js
 
 # Production stage
 FROM node:20-alpine AS production
@@ -30,12 +44,22 @@ RUN addgroup -g 1001 -S nodejs && \
 # Copy package files
 COPY package*.json ./
 
-# Install production dependencies only
-RUN npm ci --only=production && npm cache clean --force
+# Install production dependencies
+RUN echo "📦 Installing production dependencies..." && \
+    npm ci --only=production --no-audit --no-fund && \
+    npm cache clean --force && \
+    echo "✅ Production dependencies installed"
 
 # Copy built application from builder stage
 COPY --from=builder --chown=nestjs:nodejs /app/dist ./dist
-COPY --from=builder --chown=nestjs:nodejs /app/node_modules ./node_modules
+
+# Debug: Verify files were copied correctly
+RUN echo "📁 Files in production container:" && \
+    ls -la && \
+    echo "📁 Dist directory:" && \
+    ls -la dist/ && \
+    echo "📄 main.js verification:" && \
+    test -f dist/main.js && echo "✅ main.js exists" || echo "❌ main.js missing"
 
 # Create logs directory
 RUN mkdir -p logs && chown nestjs:nodejs logs
