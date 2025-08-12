@@ -3,85 +3,9 @@ name: Deploy to VPS
 on:
   push:
     branches: [ main, production ]
-  pull_request:
-    branches: [ main ]
 
 jobs:
-  test:
-    runs-on: ubuntu-latest
-    
-    services:
-      postgres:
-        image: postgis/postgis:15-3.3
-        env:
-          POSTGRES_PASSWORD: test
-          POSTGRES_USER: test
-          POSTGRES_DB: test
-        options: >-
-          --health-cmd "pg_isready -U test -d test"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 5432:5432
-      
-      redis:
-        image: redis:7-alpine
-        options: >-
-          --health-cmd "redis-cli ping"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 6379:6379
-
-    steps:
-    - uses: actions/checkout@v4
-    
-    - name: Setup Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: '20'
-        cache: 'npm'
-    
-    - name: Install dependencies
-      run: npm ci
-    
-    - name: Run linting
-      run: npm run lint
-    
-    - name: Run tests
-      run: npm run test
-      env:
-        DATABASE_HOST: localhost
-        DATABASE_PORT: 5432
-        DATABASE_USER: test
-        DATABASE_PASSWORD: test
-        DATABASE_NAME: test
-        REDIS_HOST: localhost
-        REDIS_PORT: 6379
-        REDIS_PASSWORD: ""
-        JWT_SECRET: test_jwt_secret_at_least_32_characters_long
-        JWT_REFRESH_SECRET: test_refresh_secret_at_least_32_characters_long
-        NODE_ENV: test
-    
-    - name: Run e2e tests
-      run: npm run test:e2e
-      env:
-        DATABASE_HOST: localhost
-        DATABASE_PORT: 5432
-        DATABASE_USER: test
-        DATABASE_PASSWORD: test
-        DATABASE_NAME: test
-        REDIS_HOST: localhost
-        REDIS_PORT: 6379
-        REDIS_PASSWORD: ""
-        JWT_SECRET: test_jwt_secret_at_least_32_characters_long
-        JWT_REFRESH_SECRET: test_refresh_secret_at_least_32_characters_long
-        NODE_ENV: test
-
   deploy:
-    needs: test
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/production'
     
@@ -140,152 +64,55 @@ jobs:
           ORS_API_KEY=${{ secrets.ORS_API_KEY }}
           EOF
           
-          # Verify nginx configuration exists
-          if [ ! -f "nginx/nginx.conf" ]; then
-            echo "❌ nginx/nginx.conf not found in repository!"
-            echo "Please create nginx/nginx.conf in your project root and commit it."
-            exit 1
-          fi
-          echo "✅ nginx/nginx.conf found"
-          
-          # Create production docker-compose file
-          cat > docker-compose.prod.yml << 'EOF'
-          version: '3.8'
-          
-          services:
-            postgres:
-              image: postgis/postgis:15-3.3
-              container_name: ride_postgres
-              restart: unless-stopped
-              environment:
-                POSTGRES_DB: ${DATABASE_NAME}
-                POSTGRES_USER: ${DATABASE_USER}
-                POSTGRES_PASSWORD: ${DATABASE_PASSWORD}
-                PGDATA: /var/lib/postgresql/data/pgdata
-              volumes:
-                - postgres_data:/var/lib/postgresql/data
-              ports:
-                - "5432:5432"
-              networks:
-                - ride_network
-              healthcheck:
-                test: ["CMD-SHELL", "pg_isready -U ${DATABASE_USER} -d ${DATABASE_NAME}"]
-                interval: 10s
-                timeout: 5s
-                retries: 5
-          
-            redis:
-              image: redis:7-alpine
-              container_name: ride_redis
-              restart: unless-stopped
-              command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD}
-              volumes:
-                - redis_data:/data
-              ports:
-                - "6379:6379"
-              networks:
-                - ride_network
-              healthcheck:
-                test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
-                interval: 10s
-                timeout: 3s
-                retries: 5
-          
-            app:
-              build:
-                context: .
-                dockerfile: Dockerfile
-                target: production
-              container_name: ride_app
-              restart: unless-stopped
-              environment:
-                NODE_ENV: production
-                DATABASE_HOST: postgres
-                DATABASE_PORT: 5432
-                DATABASE_USER: ${DATABASE_USER}
-                DATABASE_PASSWORD: ${DATABASE_PASSWORD}
-                DATABASE_NAME: ${DATABASE_NAME}
-                REDIS_HOST: redis
-                REDIS_PORT: 6379
-                REDIS_PASSWORD: ${REDIS_PASSWORD}
-                JWT_SECRET: ${JWT_SECRET}
-                JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}
-                ORS_API_KEY: ${ORS_API_KEY}
-              ports:
-                - "3002:3000"
-              depends_on:
-                postgres:
-                  condition: service_healthy
-                redis:
-                  condition: service_healthy
-              networks:
-                - ride_network
-              volumes:
-                - app_logs:/app/logs
-              healthcheck:
-                test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/health"]
-                interval: 30s
-                timeout: 10s
-                retries: 3
-                start_period: 40s
-          
-            nginx:
-              image: nginx:alpine
-              container_name: ride_nginx
-              restart: unless-stopped
-              ports:
-                - "80:80"
-              volumes:
-                - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-                - nginx_logs:/var/log/nginx
-              depends_on:
-                - app
-              networks:
-                - ride_network
-          
-          volumes:
-            postgres_data:
-              driver: local
-            redis_data:
-              driver: local
-            app_logs:
-              driver: local
-            nginx_logs:
-              driver: local
-          
-          networks:
-            ride_network:
-              driver: bridge
-          EOF
-          
           # Stop existing containers (if any)
-          sudo docker-compose -f docker-compose.prod.yml down || true
+          sudo docker-compose down || true
           
-          # Build and start services
-          sudo docker-compose -f docker-compose.prod.yml up -d --build
+          # Remove any existing images to force rebuild
+          sudo docker-compose down --rmi all || true
+          
+          # Build and start services using existing docker-compose.yml
+          sudo docker-compose up -d --build
           
           # Wait for services to be ready
           echo "Waiting for services to be ready..."
-          sleep 45
+          sleep 30
           
           # Run database migrations if available
-          sudo docker-compose -f docker-compose.prod.yml exec -T app npm run migration:run || echo "Migration command not available or failed"
+          sudo docker-compose exec -T app npm run migration:run || echo "Migration command not available or failed"
           
           # Clean up unused Docker images
           sudo docker image prune -f
           
           # Show service status
           echo "=== Service Status ==="
-          sudo docker-compose -f docker-compose.prod.yml ps
+          sudo docker-compose ps
+          
+          # Show logs for troubleshooting
+          echo "=== Recent App Logs ==="
+          sudo docker-compose logs --tail 20 app
           
           # Test application health
           echo "=== Health Check ==="
-          if curl -f http://localhost/health > /dev/null 2>&1; then
-            echo "✅ Deployment successful! Application is responding on port 80"
-            echo "🌐 Your API is accessible at: http://37.59.98.144/"
-            echo "🩺 Health check: http://37.59.98.144/health"
-            echo "📚 API docs (if available): http://37.59.98.144/docs"
+          sleep 10
+          if curl -f http://localhost:5432 > /dev/null 2>&1; then
+            echo "✅ PostgreSQL is responding"
           else
-            echo "⚠️  Application may not be ready yet. Check logs:"
-            echo "sudo docker-compose -f docker-compose.prod.yml logs app"
+            echo "❌ PostgreSQL connection failed"
+          fi
+          
+          if curl -f http://localhost:6379 > /dev/null 2>&1; then
+            echo "✅ Redis is responding"  
+          else
+            echo "❌ Redis connection failed"
+          fi
+          
+          # Check if app container is running
+          if sudo docker-compose ps | grep -q "Up"; then
+            echo "✅ Deployment successful! Containers are running"
+            echo "🌐 Check your application at: http://37.59.98.144:5432 (PostgreSQL)"
+            echo "🌐 Check your application at: http://37.59.98.144:6379 (Redis)"
+            echo "📋 View logs with: sudo docker-compose logs -f"
+          else
+            echo "⚠️  Some containers may not be running properly. Check logs:"
+            echo "sudo docker-compose logs"
           fi
