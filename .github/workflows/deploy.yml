@@ -94,25 +94,34 @@ jobs:
           # Test application health
           echo "=== Health Check ==="
           sleep 10
-          if curl -f http://localhost:5432 > /dev/null 2>&1; then
-            echo "✅ PostgreSQL is responding"
+          
+          # Check if all containers are running
+          if sudo docker-compose ps | grep -q "app.*Up"; then
+            echo "✅ App container is running"
+            
+            # Test app endpoint
+            if curl -f http://localhost:3000/health > /dev/null 2>&1; then
+              echo "✅ Application health check passed"
+            else
+              echo "⚠️ Application not responding yet (may need more time)"
+            fi
           else
-            echo "❌ PostgreSQL connection failed"
+            echo "❌ App container is not running"
           fi
           
-          if curl -f http://localhost:6379 > /dev/null 2>&1; then
-            echo "✅ Redis is responding"  
+          # Check database and redis
+          if sudo docker-compose ps | grep -q "postgres.*Up.*healthy"; then
+            echo "✅ PostgreSQL is healthy"
           else
-            echo "❌ Redis connection failed"
+            echo "❌ PostgreSQL is not healthy"
           fi
           
-          # Check if app container is running
-          if sudo docker-compose ps | grep -q "Up"; then
-            echo "✅ Deployment successful! Containers are running"
-            echo "🌐 Check your application at: http://37.59.98.144:5432 (PostgreSQL)"
-            echo "🌐 Check your application at: http://37.59.98.144:6379 (Redis)"
-            echo "📋 View logs with: sudo docker-compose logs -f"
+          if sudo docker-compose ps | grep -q "redis.*Up.*healthy"; then
+            echo "✅ Redis is healthy"
           else
-            echo "⚠️  Some containers may not be running properly. Check logs:"
-            echo "sudo docker-compose logs"
+            echo "❌ Redis is not healthy"
           fi
+          
+          echo "🌐 Your application should be available at: http://37.59.98.144:3000"
+          echo "🩺 Health check: http://37.59.98.144:3000/health"
+          echo "📋 View logs with: sudo docker-compose logs -f"

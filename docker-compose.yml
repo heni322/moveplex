@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   # PostgreSQL with PostGIS
   postgres:
@@ -41,10 +39,55 @@ services:
       timeout: 3s
       retries: 5
 
+  # NestJS Application
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: production
+    container_name: ride_app
+    restart: unless-stopped
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      DATABASE_HOST: postgres
+      DATABASE_PORT: 5432
+      DATABASE_USER: ${DATABASE_USER:-moveplex}
+      DATABASE_PASSWORD: ${DATABASE_PASSWORD:-moveplex}
+      DATABASE_NAME: ${DATABASE_NAME:-ride_sharing_db}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+      JWT_SECRET: ${JWT_SECRET:-moveplex}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-moveplex}
+      JWT_ACCESS_EXPIRY: ${JWT_ACCESS_EXPIRY:-15m}
+      JWT_REFRESH_EXPIRY: ${JWT_REFRESH_EXPIRY:-7d}
+      BCRYPT_ROUNDS: ${BCRYPT_ROUNDS:-12}
+      PORT: ${PORT:-3000}
+      ORS_API_KEY: ${ORS_API_KEY}
+    ports:
+      - "3000:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - ride_network
+    volumes:
+      - app_logs:/app/logs
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
 volumes:
   postgres_data:
     driver: local
   redis_data:
+    driver: local
+  app_logs:
     driver: local
 
 networks:
