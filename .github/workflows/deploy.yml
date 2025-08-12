@@ -100,7 +100,7 @@ jobs:
             echo "✅ App container is running"
             
             # Test app endpoint
-            if curl -f http://localhost:3000/health > /dev/null 2>&1; then
+            if curl -f http://localhost:3002/health > /dev/null 2>&1; then
               echo "✅ Application health check passed"
             else
               echo "⚠️ Application not responding yet (may need more time)"
@@ -122,6 +122,6 @@ jobs:
             echo "❌ Redis is not healthy"
           fi
           
-          echo "🌐 Your application should be available at: http://37.59.98.144:3000"
-          echo "🩺 Health check: http://37.59.98.144:3000/health"
+          echo "🌐 Your application should be available at: http://37.59.98.144:3002"
+          echo "🩺 Health check: http://37.59.98.144:3002/health"
           echo "📋 View logs with: sudo docker-compose logs -f"
