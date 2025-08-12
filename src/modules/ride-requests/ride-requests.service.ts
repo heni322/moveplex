@@ -537,7 +537,6 @@ export class RideRequestsService {
     };
   }
 
-  // Helper methods
   private mapToResponseDto(
     request: RideRequest | QueryResult | NearbyQueryResult,
   ): RideRequestResponseDto {
@@ -562,7 +561,7 @@ export class RideRequestsService {
     const destinationLongitude =
       (request as RideRequest).destinationLongitude ??
       (request as QueryResult).destination_longitude;
-    const rideType = (request as RideRequest).rideType ?? (request as QueryResult).ride_type;
+    const rideType = ((request as RideRequest).rideType ?? (request as QueryResult).ride_type) as RideType; // Cast to RideType
     const maxWaitTime =
       (request as RideRequest).maxWaitTime ?? (request as QueryResult).max_wait_time;
     const isActive =
