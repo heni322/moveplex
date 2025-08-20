@@ -1,7 +1,7 @@
 import { Injectable, UnauthorizedException, ConflictException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
-import { In, LessThan, MoreThan, Repository } from 'typeorm';
+import { EntityManager, In, LessThan, MoreThan, Repository } from 'typeorm';
 import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
@@ -80,7 +80,8 @@ export class AuthService {
         await manager.save(driverProfile);
       }
 
-      return this.generateTokenPair(savedUser);
+      // Pass the manager to generateTokenPair to ensure it uses the same transaction
+      return this.generateTokenPair(savedUser, undefined, undefined, manager);
     });
   }
 
@@ -173,6 +174,7 @@ export class AuthService {
     user: User,
     userAgent?: string,
     ipAddress?: string,
+    manager?: EntityManager, // Add optional manager parameter
   ): Promise<AuthResponse> {
     const payload: TokenPayload = {
       sub: user.id,
@@ -187,16 +189,32 @@ export class AuthService {
     const refreshToken = this.generateRefreshToken();
     const hashedRefreshToken = await this.hashRefreshToken(refreshToken);
 
-    // Store refresh token in database
-    const refreshTokenEntity = this.refreshTokenRepository.create({
-      token: hashedRefreshToken,
-      user,
-      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
-      userAgent,
-      ipAddress,
-    });
+    // CRITICAL FIX: Use the provided manager correctly
+    if (manager) {
+      // Within transaction - create entity using manager's repository
+      const refreshTokenRepo = manager.getRepository(RefreshToken);
+      const refreshTokenEntity = refreshTokenRepo.create({
+        token: hashedRefreshToken,
+        user, // Pass the user object directly
+        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
+        userAgent,
+        ipAddress,
+      });
 
-    await this.refreshTokenRepository.save(refreshTokenEntity);
+      // Save using the transaction manager's repository
+      await refreshTokenRepo.save(refreshTokenEntity);
+    } else {
+      // Outside transaction - use the repository
+      const refreshTokenEntity = this.refreshTokenRepository.create({
+        token: hashedRefreshToken,
+        user,
+        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
+        userAgent,
+        ipAddress,
+      });
+
+      await this.refreshTokenRepository.save(refreshTokenEntity);
+    }
 
     return {
       access_token: accessToken,
@@ -214,7 +232,6 @@ export class AuthService {
       },
     };
   }
-
   private async hashPassword(password: string): Promise<string> {
     const saltRounds = 12;
     return bcrypt.hash(password, saltRounds);

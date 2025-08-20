@@ -72,20 +72,35 @@ export class RoutingService {
         instructions: true,
         geometry: true,
       };
+      if (!this.isValidCoordinate(start) || !this.isValidCoordinate(end)) {
+        throw new Error('Invalid coordinates provided');
+      }
 
+      const validProfiles = [
+        'driving-car', 'driving-hgv', 'cycling-regular', 
+        'cycling-road', 'cycling-mountain', 'cycling-electric',
+        'foot-walking', 'foot-hiking', 'wheelchair'
+      ];
+      
+      if (!validProfiles.includes(profile)) {
+        throw new Error(`Invalid profile: ${profile}`);
+      }
+      
       this.logger.debug('Getting route', { profile, requestBody });
-
+      const url = `${this.openRouteServiceUrl}/v2/directions/${profile}/json`;
+      this.logger.debug('Making route request', { 
+        url, 
+        profile, 
+        requestBody,
+        hasApiKey: !!this.apiKey 
+      });
       const response = await firstValueFrom(
-        this.httpService.post(
-          `${this.openRouteServiceUrl}/v2/directions/${profile}/json`,
-          requestBody,
-          {
-            headers: {
-              Authorization: this.apiKey,
-              'Content-Type': 'application/json',
-            },
+        this.httpService.post(url, requestBody, {
+          headers: {
+            'Authorization': `Bearer ${this.apiKey}`, // Fixed: Added Bearer prefix
+            'Content-Type': 'application/json',
           },
-        ),
+        }),
       );
 
       const routeData = response.data as RouteResponse;
@@ -104,10 +119,24 @@ export class RoutingService {
           })) ?? [],
       };
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown routing error';
-      const errorStack = error instanceof Error ? error.stack : undefined;
-      this.logger.error(`Routing error: ${errorMessage}`, errorStack);
-      throw new Error('Routing service unavailable');
+      if (error.response) {
+        // The request was made and the server responded with a status code
+        this.logger.error('API Response Error', {
+          status: error.response.status,
+          statusText: error.response.statusText,
+          data: error.response.data,
+          url: error.config?.url,
+        });
+      } else if (error.request) {
+        // The request was made but no response was received
+        this.logger.error('Network Error', { 
+          message: error.message,
+          code: error.code 
+        });
+      } else {
+        this.logger.error('Request Setup Error', { message: error.message });
+      }
+      throw new Error(`Routing service unavailable: ${error.message}`);
     }
   }
 
@@ -201,5 +230,16 @@ export class RoutingService {
       this.logger.error(`Optimized routing error: ${errorMessage}`, errorStack);
       throw new Error('Optimized routing service unavailable');
     }
+  }
+  private isValidCoordinate(coord: Coordinates): boolean {
+    return (
+      coord &&
+      typeof coord.latitude === 'number' &&
+      typeof coord.longitude === 'number' &&
+      coord.latitude >= -90 &&
+      coord.latitude <= 90 &&
+      coord.longitude >= -180 &&
+      coord.longitude <= 180
+    );
   }
 }
