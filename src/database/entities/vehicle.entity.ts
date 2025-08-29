@@ -1,6 +1,6 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, OneToMany } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, OneToMany, ManyToMany } from 'typeorm';
 import { DriverProfile } from './driver-profile.entity';
-import { VehicleType } from '../../common/enums/vehicle-types.enum';
+import { VehicleType } from './vehicle-type.entity';
 
 @Entity('vehicles')
 export class Vehicle {
@@ -22,13 +22,6 @@ export class Vehicle {
   @Column({ name: 'license_plate', length: 20, unique: true })
   licensePlate: string;
 
-  @Column({
-    type: 'enum',
-    enum: VehicleType,
-    name: 'vehicle_type',
-  })
-  vehicleType: VehicleType;
-
   @Column({ default: 4 })
   seats: number;
 
@@ -39,6 +32,9 @@ export class Vehicle {
   createdAt: Date;
 
   // Relations
+  @ManyToMany(() => VehicleType, vehicleType => vehicleType.vehicles, { eager: true })
+  vehicleTypes: VehicleType[];
+
   @OneToMany(() => DriverProfile, driverProfile => driverProfile.vehicle)
   driverProfiles: DriverProfile[];
 }

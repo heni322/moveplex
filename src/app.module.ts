@@ -29,6 +29,10 @@ import { SurgePricingModule } from './modules/surge-pricing/surge-pricing.module
 import { DriverProfileModule } from './modules/driver-profiles/driver-profiles.module';
 import { RefreshToken } from './database/entities/refresh-token.entity';
 import { HealthModule } from './modules/health/health.module';
+import { VehicleTypeModule } from './modules/vehicle-types/vehicle-type.module';
+import { VehicleType } from './database/entities/vehicle-type.entity';
+import { ServeStaticModule } from '@nestjs/serve-static';
+import { join } from 'path';
 
 // Debug environment variables
 console.log('=== ENVIRONMENT DEBUG ===');
@@ -56,7 +60,10 @@ console.log('=== END ENVIRONMENT DEBUG ===');
         JWT_SECRET: Joi.string().required(),
       }),
     }),
-
+    ServeStaticModule.forRoot({
+      rootPath: join(__dirname, '..', 'uploads'),
+      serveRoot: '/uploads', // public URL prefix
+    }),
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
       useFactory: (configService: ConfigService) => {
@@ -83,6 +90,7 @@ console.log('=== END ENVIRONMENT DEBUG ===');
             User,
             DriverProfile,
             Vehicle,
+            VehicleType,
             RideRequest,
             RideTracking,
             Payment,
@@ -119,6 +127,7 @@ console.log('=== END ENVIRONMENT DEBUG ===');
     NotificationsModule,
     RatingsModule,
     VehiclesModule,
+    VehicleTypeModule,
     UsersModule,
     SurgePricingModule,
     HealthModule,

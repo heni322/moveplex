@@ -38,6 +38,7 @@
     "@nestjs/passport": "^11.0.5",
     "@nestjs/platform-express": "^11.0.1",
     "@nestjs/platform-socket.io": "^11.1.3",
+    "@nestjs/serve-static": "^5.0.3",
     "@nestjs/swagger": "github:nestjs/swagger",
     "@nestjs/throttler": "^6.4.0",
     "@nestjs/typeorm": "^11.0.0",
@@ -56,7 +57,8 @@
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1",
     "stripe": "^18.2.1",
-    "typeorm": "^0.3.24"
+    "typeorm": "^0.3.24",
+    "uuid": "^11.1.0"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.2.0",
@@ -69,6 +71,7 @@
     "@types/bcrypt": "^5.0.2",
     "@types/express": "^5.0.0",
     "@types/jest": "^29.5.14",
+    "@types/multer": "^2.0.0",
     "@types/node": "^22.10.7",
     "@types/passport-jwt": "^4.0.1",
     "@types/supertest": "^6.0.2",

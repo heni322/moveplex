@@ -5,15 +5,19 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, In } from 'typeorm';
 import { CreateVehicleDto, UpdateVehicleDto, VehicleFilterDto } from './dto/vehicles.dto';
 import { Vehicle } from '../../database/entities/vehicle.entity';
+import { VehicleType } from '../../database/entities/vehicle-type.entity';
+import { PaginatedResponse } from '../../common/interfaces/paginated-response.interface';
 
 @Injectable()
 export class VehiclesService {
   constructor(
     @InjectRepository(Vehicle)
     private readonly vehicleRepository: Repository<Vehicle>,
+    @InjectRepository(VehicleType)
+    private readonly vehicleTypeRepository: Repository<VehicleType>,
   ) {}
 
   async createVehicle(createDto: CreateVehicleDto): Promise<Vehicle> {
@@ -26,9 +30,29 @@ export class VehiclesService {
       throw new ConflictException('Vehicle with this license plate already exists');
     }
 
+    // Validate vehicle types exist and are active
+    let vehicleTypes: VehicleType[] = [];
+    if (createDto.vehicleTypeIds && createDto.vehicleTypeIds.length > 0) {
+      vehicleTypes = await this.vehicleTypeRepository.find({
+        where: { 
+          id: In(createDto.vehicleTypeIds),
+          isActive: true 
+        },
+      });
+
+      if (vehicleTypes.length !== createDto.vehicleTypeIds.length) {
+        throw new BadRequestException('One or more vehicle types are invalid or inactive');
+      }
+    }
+
     const vehicle = this.vehicleRepository.create({
-      ...createDto,
+      make: createDto.make,
+      model: createDto.model,
+      year: createDto.year,
+      color: createDto.color,
       licensePlate: createDto.licensePlate.toUpperCase(),
+      seats: createDto.seats || 4,
+      vehicleTypes,
     });
 
     return this.vehicleRepository.save(vehicle);
@@ -37,7 +61,7 @@ export class VehiclesService {
   async getVehicle(vehicleId: string): Promise<Vehicle> {
     const vehicle = await this.vehicleRepository.findOne({
       where: { id: vehicleId },
-      relations: ['driverProfiles'],
+      relations: ['driverProfiles', 'vehicleTypes'],
     });
 
     if (!vehicle) {
@@ -47,19 +71,13 @@ export class VehiclesService {
     return vehicle;
   }
 
-  async getVehicles(filterDto: VehicleFilterDto): Promise<{
-    vehicles: Vehicle[];
-    total: number;
-    page: number;
-    limit: number;
-    totalPages: number;
-  }> {
+  async getVehicles(filterDto: VehicleFilterDto): Promise<PaginatedResponse<Vehicle>> {
     const {
       make,
       model,
       year,
       color,
-      vehicleType,
+      vehicleTypeIds,
       seats,
       isVerified,
       page = 1,
@@ -68,7 +86,10 @@ export class VehiclesService {
       sortOrder = 'DESC',
     } = filterDto;
 
-    const queryBuilder = this.vehicleRepository.createQueryBuilder('vehicle');
+    const queryBuilder = this.vehicleRepository
+      .createQueryBuilder('vehicle')
+      .leftJoinAndSelect('vehicle.vehicleTypes', 'vehicleTypes')
+      .leftJoinAndSelect('vehicle.driverProfiles', 'driverProfiles');
 
     // Apply filters
     if (make) {
@@ -93,8 +114,10 @@ export class VehiclesService {
       });
     }
 
-    if (vehicleType) {
-      queryBuilder.andWhere('vehicle.vehicleType = :vehicleType', { vehicleType });
+    if (vehicleTypeIds && vehicleTypeIds.length > 0) {
+      queryBuilder.andWhere('vehicleTypes.id IN (:...vehicleTypeIds)', {
+        vehicleTypeIds,
+      });
     }
 
     if (seats) {
@@ -111,12 +134,17 @@ export class VehiclesService {
       'model',
       'year',
       'color',
-      'vehicleType',
       'seats',
       'createdAt',
+      'isVerified',
     ];
     const sortField = allowedSortFields.includes(sortBy) ? sortBy : 'createdAt';
     queryBuilder.orderBy(`vehicle.${sortField}`, sortOrder);
+
+    // Add secondary sort by createdAt for consistency
+    if (sortField !== 'createdAt') {
+      queryBuilder.addOrderBy('vehicle.createdAt', 'DESC');
+    }
 
     // Apply pagination
     const offset = (page - 1) * limit;
@@ -125,11 +153,13 @@ export class VehiclesService {
     const [vehicles, total] = await queryBuilder.getManyAndCount();
 
     return {
-      vehicles,
-      total,
-      page,
-      limit,
-      totalPages: Math.ceil(total / limit),
+      data: vehicles,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
     };
   }
 
@@ -147,13 +177,30 @@ export class VehiclesService {
       }
     }
 
-    // Update the vehicle
-    const updatedData = {
-      ...updateDto,
-      ...(updateDto.licensePlate && { licensePlate: updateDto.licensePlate.toUpperCase() }),
-    };
+    // Handle vehicle types update
+    if (updateDto.vehicleTypeIds) {
+      const vehicleTypes = await this.vehicleTypeRepository.find({
+        where: { 
+          id: In(updateDto.vehicleTypeIds),
+          isActive: true 
+        },
+      });
 
-    Object.assign(vehicle, updatedData);
+      if (vehicleTypes.length !== updateDto.vehicleTypeIds.length) {
+        throw new BadRequestException('One or more vehicle types are invalid or inactive');
+      }
+
+      vehicle.vehicleTypes = vehicleTypes;
+    }
+
+    // Update other fields
+    if (updateDto.make) vehicle.make = updateDto.make;
+    if (updateDto.model) vehicle.model = updateDto.model;
+    if (updateDto.year) vehicle.year = updateDto.year;
+    if (updateDto.color) vehicle.color = updateDto.color;
+    if (updateDto.licensePlate) vehicle.licensePlate = updateDto.licensePlate.toUpperCase();
+    if (updateDto.seats) vehicle.seats = updateDto.seats;
+
     return this.vehicleRepository.save(vehicle);
   }
 
@@ -169,7 +216,11 @@ export class VehiclesService {
   }
 
   async verifyVehicle(vehicleId: string): Promise<Vehicle> {
-    const vehicle = await this.getVehicle(vehicleId);
+    const vehicle = await this.vehicleRepository.findOne({ where: { id: vehicleId } });
+
+    if (!vehicle) {
+      throw new NotFoundException('Vehicle not found');
+    }
 
     if (vehicle.isVerified) {
       throw new BadRequestException('Vehicle is already verified');
@@ -179,10 +230,25 @@ export class VehiclesService {
     return this.vehicleRepository.save(vehicle);
   }
 
+  async unverifyVehicle(vehicleId: string): Promise<Vehicle> {
+    const vehicle = await this.vehicleRepository.findOne({ where: { id: vehicleId } });
+
+    if (!vehicle) {
+      throw new NotFoundException('Vehicle not found');
+    }
+
+    if (!vehicle.isVerified) {
+      throw new BadRequestException('Vehicle is already unverified');
+    }
+
+    vehicle.isVerified = false;
+    return this.vehicleRepository.save(vehicle);
+  }
+
   async getVehicleByLicensePlate(licensePlate: string): Promise<Vehicle> {
     const vehicle = await this.vehicleRepository.findOne({
       where: { licensePlate: licensePlate.toUpperCase() },
-      relations: ['driverProfiles'],
+      relations: ['driverProfiles', 'vehicleTypes'],
     });
 
     if (!vehicle) {
@@ -192,41 +258,93 @@ export class VehiclesService {
     return vehicle;
   }
 
-  // Additional utility methods
   async getVerifiedVehicles(): Promise<Vehicle[]> {
     return this.vehicleRepository.find({
       where: { isVerified: true },
+      relations: ['vehicleTypes'],
       order: { createdAt: 'DESC' },
     });
   }
 
-  async getVehiclesByType(vehicleType: string): Promise<Vehicle[]> {
-    return this.vehicleRepository.find({
-      where: { vehicleType: vehicleType as any },
-      order: { createdAt: 'DESC' },
-    });
+  async getVehiclesByType(vehicleTypeId: string): Promise<Vehicle[]> {
+    return this.vehicleRepository
+      .createQueryBuilder('vehicle')
+      .leftJoinAndSelect('vehicle.vehicleTypes', 'vehicleTypes')
+      .leftJoinAndSelect('vehicle.driverProfiles', 'driverProfiles')
+      .where('vehicleTypes.id = :vehicleTypeId', { vehicleTypeId })
+      .orderBy('vehicle.createdAt', 'DESC')
+      .getMany();
+  }
+
+  async getVehiclesByMultipleTypes(vehicleTypeIds: string[]): Promise<Vehicle[]> {
+    return this.vehicleRepository
+      .createQueryBuilder('vehicle')
+      .leftJoinAndSelect('vehicle.vehicleTypes', 'vehicleTypes')
+      .leftJoinAndSelect('vehicle.driverProfiles', 'driverProfiles')
+      .where('vehicleTypes.id IN (:...vehicleTypeIds)', { vehicleTypeIds })
+      .orderBy('vehicle.createdAt', 'DESC')
+      .getMany();
   }
 
   async getVehicleStats(): Promise<{
     total: number;
     verified: number;
     unverified: number;
-    byType: Record<string, number>;
+    byMake: Record<string, number>;
+    byYear: Record<string, number>;
+    bySeats: Record<string, number>;
+    averageYear: number;
   }> {
     const [total, verified] = await Promise.all([
       this.vehicleRepository.count(),
       this.vehicleRepository.count({ where: { isVerified: true } }),
     ]);
 
-    const typeStats = await this.vehicleRepository
+    // Get stats by make
+    const makeStats = await this.vehicleRepository
       .createQueryBuilder('vehicle')
-      .select('vehicle.vehicleType', 'type')
+      .select('vehicle.make', 'make')
       .addSelect('COUNT(*)', 'count')
-      .groupBy('vehicle.vehicleType')
+      .groupBy('vehicle.make')
+      .orderBy('count', 'DESC')
       .getRawMany();
 
-    const byType = typeStats.reduce((acc, stat) => {
-      acc[stat.type] = parseInt(stat.count);
+    // Get stats by year
+    const yearStats = await this.vehicleRepository
+      .createQueryBuilder('vehicle')
+      .select('vehicle.year', 'year')
+      .addSelect('COUNT(*)', 'count')
+      .groupBy('vehicle.year')
+      .orderBy('vehicle.year', 'DESC')
+      .getRawMany();
+
+    // Get stats by seats
+    const seatsStats = await this.vehicleRepository
+      .createQueryBuilder('vehicle')
+      .select('vehicle.seats', 'seats')
+      .addSelect('COUNT(*)', 'count')
+      .groupBy('vehicle.seats')
+      .orderBy('vehicle.seats', 'ASC')
+      .getRawMany();
+
+    // Calculate average year
+    const avgYearResult = await this.vehicleRepository
+      .createQueryBuilder('vehicle')
+      .select('AVG(vehicle.year)', 'avgYear')
+      .getRawOne();
+
+    const byMake = makeStats.reduce((acc, stat) => {
+      acc[stat.make] = parseInt(stat.count);
+      return acc;
+    }, {});
+
+    const byYear = yearStats.reduce((acc, stat) => {
+      acc[stat.year] = parseInt(stat.count);
+      return acc;
+    }, {});
+
+    const bySeats = seatsStats.reduce((acc, stat) => {
+      acc[stat.seats] = parseInt(stat.count);
       return acc;
     }, {});
 
@@ -234,7 +352,58 @@ export class VehiclesService {
       total,
       verified,
       unverified: total - verified,
-      byType,
+      byMake,
+      byYear,
+      bySeats,
+      averageYear: parseFloat(avgYearResult?.avgYear) || 0,
     };
+  }
+
+  async searchVehicles(searchTerm: string): Promise<Vehicle[]> {
+    return this.vehicleRepository
+      .createQueryBuilder('vehicle')
+      .leftJoinAndSelect('vehicle.vehicleTypes', 'vehicleTypes')
+      .where('LOWER(vehicle.make) LIKE LOWER(:searchTerm)', {
+        searchTerm: `%${searchTerm}%`,
+      })
+      .orWhere('LOWER(vehicle.model) LIKE LOWER(:searchTerm)', {
+        searchTerm: `%${searchTerm}%`,
+      })
+      .orWhere('LOWER(vehicle.color) LIKE LOWER(:searchTerm)', {
+        searchTerm: `%${searchTerm}%`,
+      })
+      .orWhere('vehicle.licensePlate LIKE :searchTerm', {
+        searchTerm: `%${searchTerm.toUpperCase()}%`,
+      })
+      .orderBy('vehicle.createdAt', 'DESC')
+      .take(20)
+      .getMany();
+  }
+
+  async bulkVerifyVehicles(vehicleIds: string[]): Promise<{ updated: number; errors: string[] }> {
+    const errors: string[] = [];
+    let updated = 0;
+
+    for (const vehicleId of vehicleIds) {
+      try {
+        await this.verifyVehicle(vehicleId);
+        updated++;
+      } catch (error) {
+        errors.push(`Vehicle ${vehicleId}: ${error.message}`);
+      }
+    }
+
+    return { updated, errors };
+  }
+
+  async getVehiclesByMakeAndModel(make: string, model: string): Promise<Vehicle[]> {
+    return this.vehicleRepository.find({
+      where: {
+        make: make.toLowerCase(),
+        model: model.toLowerCase(),
+      },
+      relations: ['vehicleTypes', 'driverProfiles'],
+      order: { year: 'DESC' },
+    });
   }
 }
