@@ -23,6 +23,6 @@ export default new DataSource({
       ? 'dist/database/migrations/**/*.js'
       : 'src/database/migrations/**/*{.ts,.js}'
   ],
-  synchronize: false, // Always false for safety
+  synchronize: true, // Always false for safety
   logging: configService.get<string>('NODE_ENV') !== 'production',
 });
