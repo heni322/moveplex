@@ -50,11 +50,21 @@ export class RoutingService {
     private readonly httpService: HttpService,
     private readonly configService: ConfigService,
   ) {
-    this.openRouteServiceUrl = this.configService.get(
-      'OPENROUTE_SERVICE_URL',
-      'https://api.openrouteservice.org',
-    );
-    this.apiKey = this.configService.get('ORS_API_KEY')!;
+    // Handle empty or undefined environment variable properly
+    const configUrl = this.configService.get<string>('OPENROUTE_SERVICE_URL');
+    this.openRouteServiceUrl = configUrl && configUrl.trim() !== '' 
+      ? configUrl 
+      : 'https://api.openrouteservice.org';
+    
+    // Handle API key similarly
+    const configApiKey = this.configService.get<string>('ORS_API_KEY');
+    this.apiKey = configApiKey && configApiKey.trim() !== '' ? configApiKey : '';
+    
+    // Log initialization info for debugging
+    this.logger.debug('RoutingService initialized', { 
+      baseUrl: this.openRouteServiceUrl, 
+      hasApiKey: !!this.apiKey 
+    });
   }
 
   async getRoute(
@@ -63,15 +73,6 @@ export class RoutingService {
     profile: string = 'driving-car',
   ): Promise<RouteResult> {
     try {
-      const requestBody = {
-        coordinates: [
-          [start.longitude, start.latitude],
-          [end.longitude, end.latitude],
-        ],
-        format: 'json',
-        instructions: true,
-        geometry: true,
-      };
       if (!this.isValidCoordinate(start) || !this.isValidCoordinate(end)) {
         throw new Error('Invalid coordinates provided');
       }
@@ -85,25 +86,47 @@ export class RoutingService {
       if (!validProfiles.includes(profile)) {
         throw new Error(`Invalid profile: ${profile}`);
       }
+
+      const requestBody = {
+        coordinates: [
+          [start.longitude, start.latitude],
+          [end.longitude, end.latitude],
+        ],
+        format: 'json',
+        instructions: true,
+        geometry: true,
+      };
       
       this.logger.debug('Getting route', { profile, requestBody });
-      const url = `${this.openRouteServiceUrl}/v2/directions/${profile}/json`;
+      
+      // Construct full URL properly
+      const url = `${this.openRouteServiceUrl}/v2/directions/${profile}`;
+      
       this.logger.debug('Making route request', { 
         url, 
         profile, 
         requestBody,
         hasApiKey: !!this.apiKey 
       });
+
+      // Make the request with proper headers
       const response = await firstValueFrom(
         this.httpService.post(url, requestBody, {
           headers: {
-            'Authorization': `Bearer ${this.apiKey}`, // Fixed: Added Bearer prefix
+            'Authorization': this.apiKey, // Remove Bearer prefix as ORS expects just the key
             'Content-Type': 'application/json',
+            'Accept': 'application/json',
           },
+          timeout: 10000, // Add timeout
         }),
       );
 
       const routeData = response.data as RouteResponse;
+      
+      if (!routeData.routes || routeData.routes.length === 0) {
+        throw new Error('No routes found');
+      }
+      
       const route = routeData.routes[0];
 
       return {
@@ -111,7 +134,7 @@ export class RoutingService {
         duration: route.summary.duration,
         geometry: route.geometry.coordinates,
         instructions:
-          route.segments[0].steps?.map((step: RouteStep) => ({
+          route.segments[0]?.steps?.map((step: RouteStep) => ({
             instruction: step.instruction,
             distance: step.distance,
             duration: step.duration,
@@ -131,7 +154,8 @@ export class RoutingService {
         // The request was made but no response was received
         this.logger.error('Network Error', { 
           message: error.message,
-          code: error.code 
+          code: error.code,
+          url: this.openRouteServiceUrl
         });
       } else {
         this.logger.error('Request Setup Error', { message: error.message });
@@ -157,12 +181,15 @@ export class RoutingService {
         metrics: ['distance', 'duration'],
       };
 
+      const url = `${this.openRouteServiceUrl}/v2/matrix/${profile}`;
+      
       const response = await firstValueFrom(
-        this.httpService.post(`${this.openRouteServiceUrl}/v2/matrix/${profile}`, requestBody, {
+        this.httpService.post(url, requestBody, {
           headers: {
-            Authorization: this.apiKey,
+            'Authorization': this.apiKey,
             'Content-Type': 'application/json',
           },
+          timeout: 10000,
         }),
       );
 
@@ -193,17 +220,16 @@ export class RoutingService {
         optimize: true,
       };
 
+      const url = `${this.openRouteServiceUrl}/v2/directions/${profile}`;
+      
       const response = await firstValueFrom(
-        this.httpService.post(
-          `${this.openRouteServiceUrl}/v2/directions/${profile}/json`,
-          requestBody,
-          {
-            headers: {
-              Authorization: this.apiKey,
-              'Content-Type': 'application/json',
-            },
+        this.httpService.post(url, requestBody, {
+          headers: {
+            'Authorization': this.apiKey,
+            'Content-Type': 'application/json',
           },
-        ),
+          timeout: 10000,
+        }),
       );
 
       const routeData = response.data as RouteResponse;
@@ -231,6 +257,7 @@ export class RoutingService {
       throw new Error('Optimized routing service unavailable');
     }
   }
+
   private isValidCoordinate(coord: Coordinates): boolean {
     return (
       coord &&
