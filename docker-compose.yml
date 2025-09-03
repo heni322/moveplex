@@ -66,6 +66,7 @@ services:
       BCRYPT_ROUNDS: ${BCRYPT_ROUNDS:-12}
       PORT: 3000
       ORS_API_KEY: ${ORS_API_KEY}
+      OPENROUTE_SERVICE_URL: ${OPENROUTE_SERVICE_URL}
     ports:
       - "3002:3000"
     depends_on:

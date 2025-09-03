@@ -69,6 +69,7 @@ jobs:
           NODE_ENV=production
           PORT=3000
           ORS_API_KEY=${{ secrets.ORS_API_KEY }}
+          OPENROUTE_SERVICE_URL=${{ secrets.OPENROUTE_SERVICE_URL }}
           EOF
           
           # Clean up Docker resources to ensure fresh build

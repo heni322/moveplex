@@ -52,7 +52,7 @@ export class RoutingService {
   ) {
     this.openRouteServiceUrl = this.configService.get(
       'OPENROUTE_SERVICE_URL',
-      'http://37.59.98.144/ors',
+      'https://api.openrouteservice.org',
     );
     this.apiKey = this.configService.get('ORS_API_KEY')!;
   }
