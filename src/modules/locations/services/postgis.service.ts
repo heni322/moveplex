@@ -14,7 +14,7 @@ interface NearbyDriverQueryResult {
   longitude: string;
   distance_km: string;
   rating: string;
-  vehicle_type: string;
+  vehicle_types: string; // Will contain comma-separated vehicle type names
   status: string;
 }
 
@@ -62,10 +62,15 @@ export class PostgisService {
           ST_SetSRID(ST_MakePoint($1, $2), 4326)::geography
         ) / 1000 as distance_km,
         dp.rating,
-        v.vehicle_type,
+        COALESCE(
+          STRING_AGG(DISTINCT vt.name, ', ' ORDER BY vt.name), 
+          'Unknown'
+        ) as vehicle_types,
         dp.status
       FROM driver_profiles dp
       LEFT JOIN vehicles v ON dp.vehicle_id = v.id
+      LEFT JOIN vehicle_vehicle_types vvt ON v.id = vvt."vehiclesId"
+      LEFT JOIN vehicle_types vt ON vvt."vehicleTypesId" = vt.id
       WHERE 
         dp.is_online = true 
         AND dp.status = 'online'
@@ -75,31 +80,39 @@ export class PostgisService {
           ST_SetSRID(ST_MakePoint($1, $2), 4326)::geography,
           $3 * 1000
         )
+      GROUP BY 
+        dp.id, dp.user_id, dp.current_latitude, dp.current_longitude, 
+        dp.current_location, dp.rating, dp.status
       ORDER BY distance_km ASC
       LIMIT $4
     `;
 
-    const rawResult: unknown = await this.driverProfileRepository.query(query, [
-      coordinates.longitude,
-      coordinates.latitude,
-      radiusKm,
-      limit,
-    ]);
+    try {
+      const rawResult: unknown = await this.driverProfileRepository.query(query, [
+        coordinates.longitude,
+        coordinates.latitude,
+        radiusKm,
+        limit,
+      ]);
 
-    const result = rawResult as NearbyDriverQueryResult[];
+      const result = rawResult as NearbyDriverQueryResult[];
 
-    return result.map(
-      (row: NearbyDriverQueryResult): NearbyDriver => ({
-        driverId: row.driver_id,
-        userId: row.user_id,
-        latitude: parseFloat(row.latitude),
-        longitude: parseFloat(row.longitude),
-        distanceKm: parseFloat(row.distance_km),
-        rating: parseFloat(row.rating),
-        vehicleType: row.vehicle_type,
-        status: row.status,
-      }),
-    );
+      return result.map(
+        (row: NearbyDriverQueryResult): NearbyDriver => ({
+          driverId: row.driver_id,
+          userId: row.user_id,
+          latitude: parseFloat(row.latitude),
+          longitude: parseFloat(row.longitude),
+          distanceKm: parseFloat(row.distance_km),
+          rating: parseFloat(row.rating),
+          vehicleType: row.vehicle_types, // Now contains comma-separated vehicle types
+          status: row.status,
+        }),
+      );
+    } catch (error) {
+      this.logger.error('Error finding nearby drivers:', error);
+      throw error;
+    }
   }
 
   async updateDriverLocation(driverId: string, coordinates: Coordinates): Promise<void> {

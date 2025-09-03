@@ -62,29 +62,33 @@ export class GeocodeDto {
 }
 
 export class RouteDto {
+  @IsOptional()
   @IsNumber()
-  @Min(-90)
-  @Max(90)
+  // @Min(-90)
+  // @Max(90)
   @Type(() => Number)
-  startLatitude: number;
+  startLatitude?: number;
 
+  @IsOptional()
   @IsNumber()
-  @Min(-180)
-  @Max(180)
+  // @Min(-180)
+  // @Max(180)
   @Type(() => Number)
-  startLongitude: number;
+  startLongitude?: number;
 
+  @IsOptional()
   @IsNumber()
-  @Min(-90)
-  @Max(90)
+  // @Min(-90)
+  // @Max(90)
   @Type(() => Number)
-  endLatitude: number;
+  endLatitude?: number;
 
+  @IsOptional()
   @IsNumber()
-  @Min(-180)
-  @Max(180)
+  // @Min(-180)
+  // @Max(180)
   @Type(() => Number)
-  endLongitude: number;
+  endLongitude?: number;
 
   @IsOptional()
   @IsString()
