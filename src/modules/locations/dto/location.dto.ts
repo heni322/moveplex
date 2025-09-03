@@ -3,14 +3,14 @@ import { Type } from 'class-transformer';
 
 export class LocationDto {
   @IsNumber()
-  @Min(-90)
-  @Max(90)
+  // @Min(-90)
+  // @Max(90)
   @Type(() => Number)
   latitude: number;
 
   @IsNumber()
-  @Min(-180)
-  @Max(180)
+  // @Min(-180)
+  // @Max(180)
   @Type(() => Number)
   longitude: number;
 
@@ -21,14 +21,14 @@ export class LocationDto {
 
 export class FindNearbyDriversDto {
   @IsNumber()
-  @Min(-90)
-  @Max(90)
+  // @Min(-90)
+  // @Max(90)
   @Type(() => Number)
   latitude: number;
 
   @IsNumber()
-  @Min(-180)
-  @Max(180)
+  // @Min(-180)
+  // @Max(180)
   @Type(() => Number)
   longitude: number;
 
