@@ -10,6 +10,7 @@ interface RouteStep {
   distance: number;
   duration: number;
   type: number;
+  way_points?: number[]; // Add way_points to get coordinate indices
 }
 
 interface RouteSegment {
@@ -22,12 +23,13 @@ interface RouteSummary {
 }
 
 interface RouteGeometry {
-  coordinates: number[][];
+  coordinates?: number[][]; // For GeoJSON format
+  type?: string;
 }
 
 interface Route {
   summary: RouteSummary;
-  geometry: RouteGeometry;
+  geometry: RouteGeometry | string; // Can be encoded polyline or GeoJSON
   segments: RouteSegment[];
 }
 
@@ -50,17 +52,14 @@ export class RoutingService {
     private readonly httpService: HttpService,
     private readonly configService: ConfigService,
   ) {
-    // Handle empty or undefined environment variable properly
     const configUrl = this.configService.get<string>('OPENROUTE_SERVICE_URL');
     this.openRouteServiceUrl = configUrl && configUrl.trim() !== '' 
       ? configUrl 
       : 'https://api.openrouteservice.org';
     
-    // Handle API key similarly
     const configApiKey = this.configService.get<string>('ORS_API_KEY');
     this.apiKey = configApiKey && configApiKey.trim() !== '' ? configApiKey : '';
     
-    // Log initialization info for debugging
     this.logger.debug('RoutingService initialized', { 
       baseUrl: this.openRouteServiceUrl, 
       hasApiKey: !!this.apiKey 
@@ -71,6 +70,7 @@ export class RoutingService {
     start: Coordinates,
     end: Coordinates,
     profile: string = 'driving-car',
+    waypoints?: Coordinates[],
   ): Promise<RouteResult> {
     try {
       if (!this.isValidCoordinate(start) || !this.isValidCoordinate(end)) {
@@ -87,19 +87,20 @@ export class RoutingService {
         throw new Error(`Invalid profile: ${profile}`);
       }
 
+      const coordinates = [
+        [start.longitude, start.latitude],
+        ...(waypoints?.map(wp => [wp.longitude, wp.latitude]) || []),
+        [end.longitude, end.latitude],
+      ];
+
       const requestBody = {
-        coordinates: [
-          [start.longitude, start.latitude],
-          [end.longitude, end.latitude],
-        ],
-        format: 'json',
+        coordinates,
         instructions: true,
-        geometry: true,
+        geometry: true, // Boolean: true to include geometry, false to exclude
       };
       
       this.logger.debug('Getting route', { profile, requestBody });
       
-      // Construct full URL properly
       const url = `${this.openRouteServiceUrl}/v2/directions/${profile}`;
       
       this.logger.debug('Making route request', { 
@@ -109,41 +110,53 @@ export class RoutingService {
         hasApiKey: !!this.apiKey 
       });
 
-      // Make the request with proper headers
       const response = await firstValueFrom(
         this.httpService.post(url, requestBody, {
           headers: {
-            'Authorization': this.apiKey, // Remove Bearer prefix as ORS expects just the key
+            'Authorization': this.apiKey,
             'Content-Type': 'application/json',
             'Accept': 'application/json',
           },
-          timeout: 10000, // Add timeout
+          timeout: 10000,
         }),
       );
 
       const routeData = response.data as RouteResponse;
-      
+        
       if (!routeData.routes || routeData.routes.length === 0) {
         throw new Error('No routes found');
       }
       
       const route = routeData.routes[0];
+      
+      // Handle geometry - check if it's GeoJSON or encoded polyline
+      let geometry: number[][];
+      if (typeof route.geometry === 'string') {
+        // It's an encoded polyline, decode it
+        geometry = this.decodePolyline(route.geometry);
+      } else if (route.geometry && route.geometry.coordinates) {
+        // It's GeoJSON format
+        geometry = route.geometry.coordinates;
+      } else {
+        throw new Error('Invalid geometry format in response');
+      }
+
 
       return {
         distance: route.summary.distance,
         duration: route.summary.duration,
-        geometry: route.geometry.coordinates,
+        coordinates: geometry,
         instructions:
-          route.segments[0]?.steps?.map((step: RouteStep) => ({
+          route.segments[0]?.steps?.map((step: RouteStep, index: number) => ({
             instruction: step.instruction,
             distance: step.distance,
             duration: step.duration,
             type: step.type,
+            coordinates: this.getStepCoordinates(step, geometry, index),
           })) ?? [],
       };
     } catch (error) {
       if (error.response) {
-        // The request was made and the server responded with a status code
         this.logger.error('API Response Error', {
           status: error.response.status,
           statusText: error.response.statusText,
@@ -151,7 +164,6 @@ export class RoutingService {
           url: error.config?.url,
         });
       } else if (error.request) {
-        // The request was made but no response was received
         this.logger.error('Network Error', { 
           message: error.message,
           code: error.code,
@@ -194,7 +206,6 @@ export class RoutingService {
       );
 
       const matrixData = response.data as MatrixResponse;
-
       return {
         distances: matrixData.distances,
         durations: matrixData.durations,
@@ -214,9 +225,8 @@ export class RoutingService {
     try {
       const requestBody = {
         coordinates: waypoints.map(coord => [coord.longitude, coord.latitude]),
-        format: 'json',
         instructions: true,
-        geometry: true,
+        geometry: true, // Boolean: true to include geometry, false to exclude
         optimize: true,
       };
 
@@ -234,18 +244,28 @@ export class RoutingService {
 
       const routeData = response.data as RouteResponse;
       const route = routeData.routes[0];
+      
+      let geometry: number[][];
+      if (typeof route.geometry === 'string') {
+        geometry = this.decodePolyline(route.geometry);
+      } else if (route.geometry && route.geometry.coordinates) {
+        geometry = route.geometry.coordinates;
+      } else {
+        throw new Error('Invalid geometry format in response');
+      }
 
       return {
         distance: route.summary.distance,
         duration: route.summary.duration,
-        geometry: route.geometry.coordinates,
+        coordinates: geometry,
         instructions: route.segments.flatMap(
           (segment: RouteSegment) =>
-            segment.steps?.map((step: RouteStep) => ({
+            segment.steps?.map((step: RouteStep, index: number) => ({
               instruction: step.instruction,
               distance: step.distance,
               duration: step.duration,
               type: step.type,
+              coordinates: this.getStepCoordinates(step, geometry, index),
             })) ?? [],
         ),
       };
@@ -256,6 +276,75 @@ export class RoutingService {
       this.logger.error(`Optimized routing error: ${errorMessage}`, errorStack);
       throw new Error('Optimized routing service unavailable');
     }
+  }
+
+  private getStepCoordinates(step: RouteStep, geometry: number[][], stepIndex: number): Coordinates {
+    // Ensure geometry exists and has coordinates
+    if (!geometry || geometry.length === 0) {
+      return { longitude: 0, latitude: 0 };
+    }
+
+    const coordIndex = Math.min(stepIndex, geometry.length - 1);
+    const coord = geometry[coordIndex];
+    
+    if (coord && coord.length >= 2) {
+      return {
+        longitude: coord[0],
+        latitude: coord[1],
+      };
+    }
+
+    // Fallback: use first coordinate
+    const firstCoord = geometry[0];
+    if (firstCoord && firstCoord.length >= 2) {
+      return {
+        longitude: firstCoord[0],
+        latitude: firstCoord[1],
+      };
+    }
+
+    return { longitude: 0, latitude: 0 };
+  }
+
+  // Simple polyline decoder (Google's polyline algorithm)
+  private decodePolyline(encoded: string): number[][] {
+    const coordinates: number[][] = [];
+    let lat = 0;
+    let lng = 0;
+    let index = 0;
+
+    while (index < encoded.length) {
+      // Decode latitude
+      let shift = 0;
+      let result = 0;
+      let byte: number;
+      
+      do {
+        byte = encoded.charCodeAt(index++) - 63;
+        result |= (byte & 0x1f) << shift;
+        shift += 5;
+      } while (byte >= 0x20);
+      
+      const deltaLat = (result & 1) !== 0 ? ~(result >> 1) : result >> 1;
+      lat += deltaLat;
+
+      // Decode longitude
+      shift = 0;
+      result = 0;
+      
+      do {
+        byte = encoded.charCodeAt(index++) - 63;
+        result |= (byte & 0x1f) << shift;
+        shift += 5;
+      } while (byte >= 0x20);
+      
+      const deltaLng = (result & 1) !== 0 ? ~(result >> 1) : result >> 1;
+      lng += deltaLng;
+
+      coordinates.push([lng / 1e5, lat / 1e5]);
+    }
+
+    return coordinates;
   }
 
   private isValidCoordinate(coord: Coordinates): boolean {

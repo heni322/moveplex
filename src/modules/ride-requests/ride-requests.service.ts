@@ -170,7 +170,7 @@ export class RideRequestsService {
         // Convert geometry to proper GeoJSON format
         const routeGeometry: GeoJSONGeometry = {
           type: 'LineString',
-          coordinates: routeResult.geometry,
+          coordinates: routeResult.coordinates,
         };
 
         return {
@@ -359,7 +359,7 @@ export class RideRequestsService {
         // Convert geometry to proper GeoJSON format
         const routeGeometry: GeoJSONGeometry = {
           type: 'LineString',
-          coordinates: routeToPickup.geometry,
+          coordinates: routeToPickup.coordinates,
         };
 
         return {

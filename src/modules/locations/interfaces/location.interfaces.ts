@@ -26,7 +26,7 @@ export interface GeocodeResult {
 export interface RouteResult {
   distance: number; // meters
   duration: number; // seconds
-  geometry: number[][]; // [longitude, latitude] pairs
+  coordinates: number[][]; // [longitude, latitude] pairs
   instructions: RouteInstruction[];
 }
 
@@ -35,6 +35,7 @@ export interface RouteInstruction {
   distance: number;
   duration: number;
   type: number;
+  coordinates?: Coordinates;
 }
 
 export interface SurgeArea {
@@ -54,4 +55,14 @@ export interface FareEstimate {
     timeFare: number;
     surgeFare: number;
   };
+}
+
+
+export interface RouteDto {
+  startLatitude: number;
+  startLongitude: number;
+  endLatitude: number;
+  endLongitude: number;
+  waypoints?: Coordinates[]; // Add waypoints support
+  profile?: string;
 }
